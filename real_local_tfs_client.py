@@ -1,97 +1,173 @@
+import re
+import html
 import requests
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional
 
 # ---------------------------------------------------------
 # 1. THE PYDANTIC SCHEMA (Data Contract)
 # ---------------------------------------------------------
 class WorkItemSummary(BaseModel):
+    """
+    Clean, normalized Pydantic model for LLM ingestion.
+    Discards bloated internal GUIDs, URLs, and system revisions.
+    """
     id: int
     title: str
-    work_item_type: str
+    work_item_type: str = Field(alias="type")
     state: str
     assigned_to: str
-    description: str 
+    priority: int = 2
+    severity: Optional[str] = None
+    iteration_path: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    description: str
+
+    model_config = {
+        "populate_by_name": True
+    }
+
+    @classmethod
+    def clean_html(cls, raw_html: str) -> str:
+        """Strips HTML tags and unescapes entities for clean LLM text."""
+        if not raw_html:
+            return ""
+        # Replace line breaks and paragraph tags with newlines/spaces
+        text = re.sub(r'<(br|p|div)[^>]*>', ' ', raw_html, flags=re.IGNORECASE)
+        # Strip all other HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+        # Unescape HTML entities (&lt;, &gt;, &amp;, etc.)
+        text = html.unescape(text)
+        # Collapse multiple spaces
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
 
 # ---------------------------------------------------------
-# 2. THE LOCAL HTTP CLIENT
+# 2. THE ENTERPRISE TFS HTTP CLIENT
 # ---------------------------------------------------------
 class LocalTFSClient:
+    """
+    Two-Stage Client connecting to TFS / Azure DevOps REST API endpoints.
+    Stage 1: Lightweight WIQL POST query to fetch matching IDs.
+    Stage 2: Batch GET lookup with Pydantic payload pruning.
+    """
     def __init__(self, base_url: str = "http://127.0.0.1:8000"):
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/")
 
     def stage_1_execute_wiql(self, query: str) -> List[int]:
         """
-        STAGE 1: Executing a real POST Request to our local emulator.
+        STAGE 1: Executes WIQL query against TFS.
+        Returns list of matching Work Item IDs.
         """
-        print(f"--> [STAGE 1] Executing POST Request: WIQL Query -> '{query}'")
-        
         url = f"{self.base_url}/_apis/wit/wiql"
         payload = {"query": query}
         
-        response = requests.post(url, json=payload)
-        response.raise_for_status()  # Will throw an error if the server is down
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
         
         data = response.json()
-        
-        # Extract the list of IDs from the response
         ids = [item["id"] for item in data.get("workItems", [])]
         return ids
 
     def stage_2_fetch_details(self, ids: List[int]) -> List[WorkItemSummary]:
         """
-        STAGE 2: Executing a real GET Request & applying the Pydantic filter.
+        STAGE 2: Executes batch GET request and prunes the bloated JSON payload.
         """
-        print(f"--> [STAGE 2] Executing GET Request for IDs -> {ids}\n")
-        
-        # Convert list of ints to a comma-separated string
+        if not ids:
+            return []
+
         ids_str = ",".join(str(i) for i in ids)
         url = f"{self.base_url}/_apis/wit/workitems?ids={ids_str}"
         
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
         
         raw_payload = response.json()
         clean_items = []
         
-        # Filter the bloated JSON through our Pydantic model
         for item in raw_payload.get("value", []):
-            #print(f"Raw Work Item JSON:\n{item}\n")
             fields = item.get("fields", {})
             assigned_to_obj = fields.get("System.AssignedTo", {})
-            assignee_name = assigned_to_obj.get("displayName", "Unassigned")
+            
+            if isinstance(assigned_to_obj, dict):
+                assignee_name = assigned_to_obj.get("displayName", "Unassigned")
+            else:
+                assignee_name = str(assigned_to_obj) if assigned_to_obj else "Unassigned"
+
+            raw_desc = fields.get("System.Description", "")
+            cleaned_desc = WorkItemSummary.clean_html(raw_desc)
+
+            raw_tags = fields.get("System.Tags", "")
+            tags_list = [t.strip() for t in raw_tags.split(";") if t.strip()] if raw_tags else []
 
             summary = WorkItemSummary(
                 id=item.get("id"),
                 title=fields.get("System.Title", "No Title"),
-                work_item_type=fields.get("System.WorkItemType", "Unknown"),
+                type=fields.get("System.WorkItemType", "Unknown"),
                 state=fields.get("System.State", "Unknown"),
                 assigned_to=assignee_name,
-                description=fields.get("System.Description", "")
+                priority=fields.get("Microsoft.VSTS.Common.Priority", 2),
+                severity=fields.get("Microsoft.VSTS.Common.Severity"),
+                iteration_path=fields.get("System.IterationPath"),
+                tags=tags_list,
+                description=cleaned_desc
             )
             clean_items.append(summary)
             
         return clean_items
 
+    def query_work_items(self, wiql_query: str) -> List[WorkItemSummary]:
+        """Convenience method running Stage 1 and Stage 2 in sequence."""
+        ids = self.stage_1_execute_wiql(wiql_query)
+        return self.stage_2_fetch_details(ids)
+
+    def query_active_bugs(self) -> List[WorkItemSummary]:
+        """Fetches all active bugs."""
+        query = "SELECT [System.Id] FROM WorkItems WHERE [System.WorkItemType] = 'Bug' AND [System.State] = 'Active'"
+        return self.query_work_items(query)
+
+    def query_by_assignee(self, assignee_name: str) -> List[WorkItemSummary]:
+        """Fetches all work items assigned to a specific engineer."""
+        query = f"SELECT [System.Id] FROM WorkItems WHERE [System.AssignedTo] = '{assignee_name}'"
+        return self.query_work_items(query)
+
 # ---------------------------------------------------------
-# 3. EXECUTE THE VERIFICATION
+# 3. VERIFICATION & INTERACTIVE TEST
 # ---------------------------------------------------------
 if __name__ == "__main__":
+    print("=" * 60)
+    print("TESTING LOCAL TFS CLIENT (TWO-STAGE RETRIEVAL)")
+    print("=" * 60)
+    
     client = LocalTFSClient()
     
     try:
-        # Run Stage 1
-        mock_ids = client.stage_1_execute_wiql("SELECT id FROM WorkItems WHERE state = 'Active'")
+        # Check server health
+        health = requests.get(f"{client.base_url}/", timeout=2).json()
+        print(f" Server Connection: OK ({health.get('service')} - {health.get('total_work_items')} items)")
         
-        # Run Stage 2
-        pruned_work_items = client.stage_2_fetch_details(mock_ids)
-        
+        # Test 1: Query Active Bugs
+        print("\n--- TEST 1: Query Active Bugs ---")
+        active_bugs = client.query_active_bugs()
+        print(f"Found {len(active_bugs)} active bugs:")
+        for bug in active_bugs:
+            print(f" • [Bug #{bug.id}] (Priority {bug.priority}) {bug.title} -> Assigned: {bug.assigned_to}")
+            print(f"   Description (HTML stripped): {bug.description}")
+
+        # Test 2: Custom WIQL for Jane Doe
+        print("\n--- TEST 2: Query Work Items Assigned to 'Jane Doe' ---")
+        jane_items = client.query_by_assignee("Jane Doe")
+        print(f"Found {len(jane_items)} items for Jane Doe:")
+        for item in jane_items:
+            print(f" • [{item.work_item_type} #{item.id}] {item.title} (State: {item.state})")
+
+        # Test 3: Output Full Pruned JSON for LLM Ingestion
+        print("\n" + "=" * 60)
+        print("SAMPLE PRUNED JSON OUTPUT FOR LLM")
         print("=" * 60)
-        print("PYDANTIC PRUNED OUTPUT (Ready for LLM Ingestion)")
-        print("=" * 60)
-        for item in pruned_work_items:
-            print(item.model_dump_json(indent=2))
-            print("-" * 60)
-            
+        if active_bugs:
+            print(active_bugs[0].model_dump_json(indent=2))
+
     except requests.exceptions.ConnectionError:
-        print("[ERROR] Could not connect to the emulator. Is FastAPI running on port 8000?")
+        print("\n❌ [ERROR] Could not connect to the emulator. Please start the server with:")
+        print("   python local_tfs_emulator.py")
