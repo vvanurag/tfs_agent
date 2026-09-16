@@ -2,66 +2,96 @@ import os
 import chromadb
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# 1. Initialize Local ChromaDB (Runs entirely in memory/locally)
-chroma_client = chromadb.PersistentClient(path="./local_chroma_db")
+# 1. Initialize Local ChromaDB (Persistent local storage on disk)
+CHROMA_PATH = "./local_chroma_db"
+COLLECTION_NAME = "enterprise_architecture"
+MOCK_DOCS_DIR = "mock_documents"
+
+print("=" * 60)
+print("STAGE 2: BUILDING LOCAL CHROMADB VECTOR STORE WITH RBAC")
+print("=" * 60)
+
+chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
 
 # Create or reset the collection
-collection_name = "enterprise_architecture"
 try:
-    chroma_client.delete_collection(name=collection_name)
+    chroma_client.delete_collection(name=COLLECTION_NAME)
+    print(f"[*] Resetting existing '{COLLECTION_NAME}' collection.")
 except Exception:
     pass
-collection = chroma_client.create_collection(name=collection_name)
 
-# 2. Configure the Semantic Text Splitter
-# We use a sliding window approach with a slight overlap to keep context intact
+collection = chroma_client.create_collection(name=COLLECTION_NAME)
+
+# 2. Configure the Semantic Text Splitter (Sliding Window)
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=300,
     chunk_overlap=50,
     separators=["\n## ", "\n\n", "\n", " ", ""]
 )
 
-# 3. Load and Chunk the Documents Manually
-documents = []
-metadata = []
-ids = []
-
-mock_docs_dir = "mock_documents"
-
-# Hardcoding our metadata mapping based on the files we created
+# 3. Document Configurations & Clearance Levels
 doc_configs = {
-    "adjudication_architecture.md": {"department": "Engineering", "clearance": 2},
-    "security_policy.md": {"department": "Audit and Compliance", "clearance": 3}
+    "engineering_handbook.md": {
+        "department": "Engineering",
+        "clearance": 1,
+        "title": "Engineering Handbook & Guidelines"
+    },
+    "adjudication_architecture.md": {
+        "department": "Engineering",
+        "clearance": 2,
+        "title": "Adjudication Architecture & SLA Specs"
+    },
+    "security_policy.md": {
+        "department": "Audit and Compliance",
+        "clearance": 3,
+        "title": "Zero-Egress & Security Mandate"
+    }
 }
 
+documents = []
+metadatas = []
+ids = []
 chunk_id_counter = 1
 
-print("=" * 50)
-print("INGESTING & CHUNKING DOCUMENTS")
-print("=" * 50)
+print("\n--- INGESTING & CHUNKING DOCUMENTS ---")
 
-for filename, meta in doc_configs.items():
-    filepath = os.path.join(mock_docs_dir, filename)
-    
-    with open(filepath, "r") as f:
+for filename, config in doc_configs.items():
+    filepath = os.path.join(MOCK_DOCS_DIR, filename)
+    if not os.path.exists(filepath):
+        print(f"[!] Warning: File {filepath} not found, skipping.")
+        continue
+
+    with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-        
-    # Break the document into chunks
+
+    # Split into overlapping semantic chunks
     chunks = text_splitter.split_text(content)
-    
+
     for i, chunk in enumerate(chunks):
         documents.append(chunk)
-        metadata.append(meta)  # Apply the RBAC metadata to every chunk
+        # Apply RBAC metadata to every single chunk
+        metadatas.append({
+            "source": filename,
+            "title": config["title"],
+            "department": config["department"],
+            "clearance": config["clearance"],
+            "chunk_index": i
+        })
         ids.append(f"chunk_{chunk_id_counter}")
-        
-        print(f"Created Chunk {chunk_id_counter} | Source: {filename} | Clearance: Level {meta['clearance']}")
+
+        print(f" • [Chunk {chunk_id_counter:02d}] Source: {filename:<30} | Clearance: Level {config['clearance']} ({config['department']})")
         chunk_id_counter += 1
 
 # 4. Embed and Store in ChromaDB
-print("\nEmbedding and storing vectors into ChromaDB...")
+print(f"\nEmbedding {len(documents)} chunks and indexing into ChromaDB at '{CHROMA_PATH}'...")
 collection.add(
     documents=documents,
-    metadatas=metadata,
+    metadatas=metadatas,
     ids=ids
 )
-print("Success! Vector Database populated locally.")
+
+print(f"✅ Success! ChromaDB populated with {collection.count()} chunks.")
+print("=" * 60)
+
+if __name__ == "__main__":
+    pass
