@@ -10,10 +10,11 @@
 * **Project Name:** TFS Agent (Zero-Egress Multi-Agent DevOps Pipeline)
 * **Repository:** `vvanurag/tfs_agent`
 * **Python Environment:** Conda environment `ai_agent` (Python 3.12, located at `/opt/homebrew/Caskroom/miniforge/base/envs/ai_agent/bin/python`)
+* **Local LLM Engine:** Ollama running `llama3:latest` (8.0B parameters, local server on `http://127.0.0.1:11434`)
 * **Core Philosophy (Zero-Egress / Air-Gapped):**
   In heavily regulated enterprise settings (e.g., healthcare, finance, defense), proprietary code, internal architecture blueprints, and ticket descriptions containing Personal Health Information (PHI) must never leave the corporate firewall.
   - **No Cloud LLM Calls:** Zero dependency on OpenAI, Anthropic, or Azure OpenAI cloud endpoints.
-  - **100% Local Execution:** Inference runs locally via **Ollama (Llama 3)**; vector search runs locally via **ChromaDB**; TFS API emulation runs via local **FastAPI + SQLite**.
+  - **100% Real Local LLM Execution:** Prompts are processed on-premises using **local Llama 3 via Ollama** (`ChatOllama`); vector search runs locally via **ChromaDB**; TFS API emulation runs via local **FastAPI + SQLite**.
 
 ---
 
@@ -23,6 +24,7 @@
 [Stage 1: TFS Ingestion] ────► [Stage 2: RAG & RBAC] ────► [Stage 3: LangGraph Multi-Agent] ────► [Stage 4: Network Resilience]
 FastAPI Emulator + SQLite       ChromaDB + Sliding Chunks    Drafting (Llama 3) -> Validation     Tenacity @retry with Jitter
 Pydantic v2 Payload Pruning     $lte Mathematical Clearance   -> Self-Healing Correction Loop      & Exponential Backoff
+                                                             (100% Real Local Llama 3)
 ```
 
 ---
@@ -56,35 +58,35 @@ Pydantic v2 Payload Pruning     $lte Mathematical Clearance   -> Self-Healing Co
 
 ---
 
-### 🟡 Stage 3: Multi-Agent Orchestration & State Management (STATUS: NEXT UP / ~40% SKELETON)
-* **Current State:**
-  - `agent_orchestrator_real_llm.py` contains a basic LangGraph `StateGraph` with nodes: `retrieval` -> `drafting` -> `validation` -> `correction` / `END`.
-* **What Remains To Be Done:**
-  1. **Connect Real Tools in `agent_tools.py`:**
-     - Replace dummy hardcoded strings in `query_tfs_work_items` with `LocalTFSClient.query_work_items()`.
-     - Replace dummy strings in `search_enterprise_knowledge_base` with `execute_rbac_search()`.
-  2. **Integrate RAG into Orchestrator:**
-     - Add a dedicated **RAG Retrieval Node** in `agent_orchestrator_real_llm.py` that inspects the blockers identified in TFS work items (e.g., NTLM timeouts) and queries ChromaDB for relevant architecture/SLA specs.
-  3. **Formal Pydantic Schema Validation:**
-     - Create a formal `SprintReportSchema` Pydantic model (`sprint_id`, `status`, `blockers`, `remediation_plan`, `sla_impact`).
-     - Update `validation_agent` to validate LLM output against this model and capture exact validation error traces.
-  4. **True Dynamic Self-Healing Correction Loop:**
-     - Update `correction_agent` to pass the exact validation error message and schema requirements back to Llama 3 for iterative self-correction (up to 3 retries).
-  5. **Create `mock_local_llm.py`:**
-     - Create a mock OpenAI-compatible client wrapper so unit tests in `agent_orchestrator.py` and `agent_orchestration_test.py` can run without a live Ollama daemon.
+### ✅ Stage 3: Multi-Agent Orchestration & Real LLM (STATUS: 100% COMPLETE & VERIFIED)
+1. **100% Real Local LLM Execution**:
+   - Replaced all mock LLM classes with **`ChatOllama(model="llama3")`** running locally on Ollama.
+   - Created [real_llm_guide.py](real_llm_guide.py) as an educational tutorial on raw LLM invocation, Pydantic type-safe structured output (`with_structured_output`), and cloud provider switching.
+2. **Live Agent Tools ([agent_tools.py](agent_tools.py))**:
+   - `query_tfs_work_items` wired to live `LocalTFSClient`.
+   - `search_enterprise_knowledge_base` wired to live `execute_rbac_search`.
+3. **Full LangGraph Multi-Agent State Machine ([agent_orchestrator_real_llm.py](agent_orchestrator_real_llm.py))**:
+   - **Node 1 (TFS Ingestion)**: Ingests and prunes active work items from the FastAPI emulator.
+   - **Node 2 (RAG Ingestion)**: Extracts keywords and fetches Level 2 SLA / architecture chunks from ChromaDB.
+   - **Node 3 (Drafting Agent)**: Prompts local Llama 3 to synthesize work items and SLA rules.
+   - **Node 4 (Validation Agent)**: Enforces strict Pydantic `SprintReportSchema` contract.
+   - **Node 5 (Correction Agent)**: Dynamic self-healing loop that reprompts Llama 3 with exact validation error traces.
+   - **Router Edge**: Conditionally routes to Correction Agent (up to 3 retries) or `END`.
+4. **All Orchestrator Scripts Upgraded**:
+   - [agent_orchestrator.py](agent_orchestrator.py) and [agent_orchestration_test.py](agent_orchestration_test.py) now execute with real Llama 3.
 
 ---
 
-### 🔴 Stage 4: Execution & Network Resilience (STATUS: ~20% SKELETON)
+### 🟡 Stage 4: Execution & Network Resilience (STATUS: UP NEXT / ~20% SKELETON)
 * **Current State:**
-  - Ollama is installed at `/usr/local/bin/ollama`.
+  - Ollama is running at `http://127.0.0.1:11434` with `llama3:latest`.
   - Tenacity is installed in the conda environment.
 * **What Remains To Be Done:**
   1. **Build `resilience_gateway.py`:**
      - Create Tenacity `@retry` decorators with jittered exponential backoff for HTTP requests (handling transient connection drops, HTTP 500/503, and 429 rate limits).
      - Wrap `LocalTFSClient` methods and LLM invocation calls with the resilience gateway.
   2. **End-to-End Test Runner (`run_pipeline.py`):**
-     - Build a single runner script that starts the emulator (if needed), executes the RAG retrieval, runs the multi-agent graph, and outputs a formatted sprint status report.
+     - Build a single unified runner script that validates environment, starts emulator if needed, builds vector store, executes the full LangGraph multi-agent pipeline, and outputs a formatted sprint status report.
 
 ---
 
@@ -102,13 +104,13 @@ Pydantic v2 Payload Pruning     $lte Mathematical Clearance   -> Self-Healing Co
 | `mock_documents/*.md` | ✅ Complete | Enterprise docs (Engineering Handbook, SLA Specs, Security Policy). |
 | `build_vector_store.py` | ✅ Complete | ChromaDB chunker and vector indexer with RBAC clearance tags. |
 | `query_vector_store.py` | ✅ Complete | RBAC similarity search with `$lte` metadata filtering. |
-| `agent_tools.py` | 🟡 Needs Wiring | LangChain `@tool` wrappers (needs live client connections). |
+| `agent_tools.py` | ✅ Complete | LangChain `@tool` wrappers connected to live TFS & ChromaDB. |
 | `test_agent_tools.py` | ✅ Complete | Unit tests for agent tools. |
-| `agent_orchestrator.py` | 🟡 Needs Mock | LangGraph state graph skeleton (needs `mock_local_llm.py`). |
-| `agent_orchestration_test.py` | 🟡 Needs Mock | Test suite for multi-agent graph. |
-| `agent_orchestrator_real_llm.py` | 🟡 In Progress | Live LangGraph workflow with Llama 3 (needs RAG + dynamic correction). |
-| `mock_local_llm.py` | ❌ To Be Created | Offline mock LLM client to support unit tests. |
-| `resilience_gateway.py` | ❌ To Be Created | Tenacity retry layer with exponential backoff & jitter. |
+| `real_llm_guide.py` | ✅ Complete | Hands-on tutorial on real LLMs, Pydantic schemas, and cloud switching. |
+| `agent_orchestrator.py` | ✅ Complete | LangGraph state graph powered by real Llama 3. |
+| `agent_orchestration_test.py` | ✅ Complete | Multi-agent test suite powered by real Llama 3. |
+| `agent_orchestrator_real_llm.py` | ✅ Complete | Production LangGraph pipeline (TFS + RAG + Llama 3 + Self-Healing). |
+| `resilience_gateway.py` | ❌ To Be Created | Tenacity retry layer with exponential backoff & jitter (Stage 4). |
 | `verify_env.py` | ✅ Complete | Environment & dependency validation script. |
 | `PROJECT_STATUS.md` | ✅ Complete | Detailed project audit and milestone tracker. |
 | `README.md` | ✅ Complete | GitHub repository documentation. |
@@ -124,21 +126,23 @@ PYTHON_BIN="/opt/homebrew/Caskroom/miniforge/base/envs/ai_agent/bin/python"
 # 1. Verify Environment
 $PYTHON_BIN verify_env.py
 
-# 2. Seed Database & Mock JSON
+# 2. Seed Database & Generate Mock JSON
 $PYTHON_BIN seed_database.py
 
 # 3. Start Local TFS Emulator (runs on port 8000)
 $PYTHON_BIN local_tfs_emulator.py &
 
-# 4. Test TFS Client Ingestion
+# 4. Test TFS Client Ingestion & Pruning
 $PYTHON_BIN real_local_tfs_client.py
 
-# 5. Build & Query ChromaDB Vector Store
+# 5. Build & Query ChromaDB Vector Store with RBAC
 $PYTHON_BIN build_vector_store.py
 $PYTHON_BIN query_vector_store.py
 
-# 6. Run LangGraph Multi-Agent Orchestrator (requires Ollama running with llama3)
-ollama serve &
+# 6. Run Real LLM Guide & Tutorial
+$PYTHON_BIN real_llm_guide.py
+
+# 7. Run Complete LangGraph Multi-Agent Pipeline (Llama 3 + Self-Healing)
 $PYTHON_BIN agent_orchestrator_real_llm.py
 ```
 
@@ -146,16 +150,10 @@ $PYTHON_BIN agent_orchestrator_real_llm.py
 
 ## 6. Exact Next Steps for the Next AI Agent
 
-If you are continuing work on this project, here is the recommended sequence:
+If you are continuing work on this project, here is the remaining milestone:
 
-1. **Step 1: Wire `agent_tools.py`**  
-   Connect `query_tfs_work_items` to `LocalTFSClient` and `search_enterprise_knowledge_base` to `execute_rbac_search`.
-2. **Step 2: Create `mock_local_llm.py`**  
-   Implement a lightweight mock `MockClient` class mimicking OpenAI's chat completion interface so `agent_orchestration_test.py` and `agent_orchestrator.py` can run standalone unit tests.
-3. **Step 3: Enhance `agent_orchestrator_real_llm.py`**  
-   - Add a `rag_retrieval_node` that extracts keywords/blockers from TFS items and pulls matching SLA/Architecture specs from ChromaDB.
-   - Define a formal `SprintReport` Pydantic model and enforce it in `validation_agent`.
-   - Upgrade `correction_agent` to pass validation error feedback back to `ChatOllama(model="llama3")` for true self-healing.
-4. **Step 4: Build `resilience_gateway.py`**  
-   Add Tenacity `@retry` decorators with jittered exponential backoff around network calls.
-5. **Step 5: Run end-to-end integration tests.**
+1. **Step 1: Build `resilience_gateway.py` (Stage 4)**  
+   - Implement Tenacity `@retry` decorators with jittered exponential backoff for HTTP requests (`requests.get`, `requests.post`) to handle simulated transient 500/503 errors and network timeouts.
+   - Wrap `LocalTFSClient` methods with this gateway layer.
+2. **Step 2: Build Unified Runner (`run_pipeline.py`)**  
+   - Provide a single entrypoint script that executes all stages end-to-end and outputs formatted sprint reports.
