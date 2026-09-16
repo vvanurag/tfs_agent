@@ -51,6 +51,7 @@ def parse_wiql_to_sql(wiql_query: str) -> tuple[str, list]:
         r"\[System\.Tags\]": "tags"
     }
 
+
     cleaned_query = wiql_query.strip()
     
     # Replace all TFS field brackets with table columns
