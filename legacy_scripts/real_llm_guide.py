@@ -32,7 +32,7 @@ def demo_local_ollama():
     )
     
     # 2. Basic Invocation
-    prompt = "Explain what a Two-Stage TFS Work Item retrieval architecture is in 2 sentences."
+    prompt = "Explain what a Two-Stage TFS Work Item retrieval architecture is in 2 sentences. Also tell me what colour Taj Mahal is"
     print(f"Prompt: {prompt}\n")
     
     response = llm.invoke(prompt)
@@ -79,41 +79,111 @@ def demo_structured_output():
 # PATTERN 3: HOW TO SWITCH TO CLOUD LLMS (FOR NON-AIR-GAPPED PROJECTS)
 # ---------------------------------------------------------------------------
 # If you ever work on projects that permit cloud APIs, LangChain uses the 
-# EXACT same .invoke() interface across all providers:
+# EXACT same .invoke() and .with_structured_output() interface across all providers:
 
 def demo_cloud_llm_examples():
     """
-    Code templates for connecting to Google Gemini, OpenAI, or Anthropic.
-    (Requires corresponding API key set in environment variables).
+    Working executable implementations for connecting to Google Gemini, 
+    OpenAI ChatGPT, and Anthropic Claude via LangChain.
+    
+    Checks environment variables dynamically:
+      - GOOGLE_API_KEY / GEMINI_API_KEY
+      - OPENAI_API_KEY
+      - ANTHROPIC_API_KEY
     """
-    # 1. Google Gemini
-    # pip install langchain-google-genai
-    # export GOOGLE_API_KEY="your-api-key"
-    """
-    from langchain_google_genai import ChatGoogleGenerativeAI
-    gemini_llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.1)
-    response = gemini_llm.invoke("Hello from Gemini!")
-    """
+    print("\n" + "=" * 60)
+    print("DEMO 3: REAL CLOUD LLM PROVIDERS (LangChain Ecosystem)")
+    print("=" * 60)
 
-    # 2. OpenAI ChatGPT
-    # pip install langchain-openai
-    # export OPENAI_API_KEY="your-api-key"
-    """
-    from langchain_openai import ChatOpenAI
-    openai_llm = ChatOpenAI(model="gpt-4o", temperature=0.1)
-    response = openai_llm.invoke("Hello from GPT-4o!")
-    """
+    test_prompt = "Explain in one sentence why API rate-limiting with exponential backoff is essential in production."
 
-    # 3. Anthropic Claude
-    # pip install langchain-anthropic
-    # export ANTHROPIC_API_KEY="your-api-key"
-    """
-    from langchain_anthropic import ChatAnthropic
-    claude_llm = ChatAnthropic(model="claude-3-5-sonnet-20240620", temperature=0.1)
-    response = claude_llm.invoke("Hello from Claude!")
-    """
+    # -----------------------------------------------------------------------
+    # 1. Google Gemini (via langchain-google-genai)
+    # -----------------------------------------------------------------------
+    print("\n--- [Provider 1] Google Gemini ---")
+    gemini_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if gemini_key:
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            print("  Connecting to Google Gemini (model='gemini-2.5-flash')...")
+            gemini_llm = ChatGoogleGenerativeAI(
+                model="gemini-2.5-flash", 
+                google_api_key=gemini_key, 
+                temperature=0.1
+            )
+            response = gemini_llm.invoke(test_prompt)
+            print(f"  Gemini Response:\n    {response.content.strip()}\n")
+            
+            # Demonstrate Structured Output on Gemini
+            structured_gemini = gemini_llm.with_structured_output(WorkItemRemediation)
+            res_struct = structured_gemini.invoke("Bug 4010: Database SSL certificate expired on primary cluster. Critical severity.")
+            print(f"  Gemini Structured Pydantic Output: Ticket #{res_struct.ticket_id} - {res_struct.title} ({res_struct.severity})")
+        except Exception as e:
+            print(f"  [ERROR] Gemini call failed: {e}")
+    else:
+        print("  [SKIPPED] GOOGLE_API_KEY not found in environment.")
+        print("  To enable Gemini, run:")
+        print("    export GOOGLE_API_KEY='your_api_key_here'")
+
+    # -----------------------------------------------------------------------
+    # 2. OpenAI ChatGPT (via langchain-openai)
+    # -----------------------------------------------------------------------
+    print("\n--- [Provider 2] OpenAI (GPT-4o) ---")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key:
+        try:
+            from langchain_openai import ChatOpenAI
+            print("  Connecting to OpenAI (model='gpt-4o')...")
+            openai_llm = ChatOpenAI(
+                model="gpt-4o", 
+                api_key=openai_key, 
+                temperature=0.1
+            )
+            response = openai_llm.invoke(test_prompt)
+            print(f"  OpenAI Response:\n    {response.content.strip()}\n")
+            
+            # Demonstrate Structured Output on OpenAI
+            structured_openai = openai_llm.with_structured_output(WorkItemRemediation)
+            res_struct = structured_openai.invoke("Bug 4011: Redis cache connection refused on port 6379. High severity.")
+            print(f"  OpenAI Structured Pydantic Output: Ticket #{res_struct.ticket_id} - {res_struct.title} ({res_struct.severity})")
+        except Exception as e:
+            print(f"  [ERROR] OpenAI call failed: {e}")
+    else:
+        print("  [SKIPPED] OPENAI_API_KEY not found in environment.")
+        print("  To enable OpenAI, run:")
+        print("    export OPENAI_API_KEY='your_api_key_here'")
+
+    # -----------------------------------------------------------------------
+    # 3. Anthropic Claude (via langchain-anthropic)
+    # -----------------------------------------------------------------------
+    print("\n--- [Provider 3] Anthropic Claude (Claude 3.5 Sonnet) ---")
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    if anthropic_key:
+        try:
+            from langchain_anthropic import ChatAnthropic
+            print("  Connecting to Anthropic (model='claude-3-5-sonnet-20240620')...")
+            claude_llm = ChatAnthropic(
+                model="claude-3-5-sonnet-20240620", 
+                api_key=anthropic_key, 
+                temperature=0.1
+            )
+            response = claude_llm.invoke(test_prompt)
+            print(f"  Anthropic Response:\n    {response.content.strip()}\n")
+            
+            # Demonstrate Structured Output on Anthropic
+            structured_claude = claude_llm.with_structured_output(WorkItemRemediation)
+            res_struct = structured_claude.invoke("Bug 4012: Ingress controller routing loop detected on port 443. Critical severity.")
+            print(f"  Anthropic Structured Pydantic Output: Ticket #{res_struct.ticket_id} - {res_struct.title} ({res_struct.severity})")
+        except Exception as e:
+            print(f"  [ERROR] Anthropic call failed: {e}")
+    else:
+        print("  [SKIPPED] ANTHROPIC_API_KEY not found in environment.")
+        print("  To enable Anthropic Claude, run:")
+        print("    export ANTHROPIC_API_KEY='your_api_key_here'")
 
 
 if __name__ == "__main__":
     demo_local_ollama()
     demo_structured_output()
+    demo_cloud_llm_examples()
+
