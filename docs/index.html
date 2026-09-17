@@ -32,6 +32,8 @@
 
         <ul class="nav-links">
           <li><a href="#architecture" class="nav-link">Architecture</a></li>
+          <li><a href="#agent-flowchart" class="nav-link">Agent Flowchart</a></li>
+          <li><a href="#function-flowchart" class="nav-link">Function Pipeline</a></li>
           <li><a href="#simulator" class="nav-link">Live Simulator</a></li>
           <li><a href="#rbac" class="nav-link">RBAC RAG</a></li>
           <li><a href="#token-diff" class="nav-link">Token Optimization</a></li>
@@ -173,6 +175,163 @@
               <span class="arch-node-pill">Tenacity</span>
               <span class="arch-node-pill">Jittered Backoff</span>
               <span class="arch-node-pill">0% Outage</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: FLOWCHART OF AGENTS (LANGGRAPH STATEGRAPH) -->
+    <section class="section" id="agent-flowchart">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-tag"><span class="badge badge-cyan">LangGraph StateGraph</span></div>
+          <h2 class="section-title">Flowchart of Autonomous Agents</h2>
+          <p class="section-desc">Stateful coordination between specialized agent nodes. Click on any agent node to inspect its internal state contract, prompt template, and decision routing.</p>
+        </div>
+
+        <div class="card flowchart-wrapper">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span class="badge badge-purple">State: AgentState</span>
+              <span style="font-size: 0.85rem; color: var(--text-muted);">TypedDict: messages, tfs_items, rag_context, report_draft, retry_count</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="animate-agent-flow-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              Animate Agent State Flow
+            </button>
+          </div>
+
+          <!-- Interactive Flowchart Diagram Canvas -->
+          <div class="flowchart-canvas">
+            <div class="flow-diagram-grid" id="agent-flowchart-grid">
+              
+              <!-- Start Node -->
+              <div class="agent-node" data-agent="start" id="flow-node-start" style="min-width: 120px; max-width: 140px;">
+                <span class="agent-node-badge badge-cyan">ENTRY</span>
+                <div class="agent-node-title">Start / WIQL</div>
+                <div class="agent-node-sub">Trigger Event</div>
+              </div>
+
+              <!-- Connector -->
+              <div class="flow-arrow">
+                <span>wiql</span>
+                <svg width="32" height="16" viewBox="0 0 32 16" fill="none"><path d="M0 8h26m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2"/></svg>
+              </div>
+
+              <!-- Node 1: TFS Retrieval -->
+              <div class="agent-node selected" data-agent="tfs" id="flow-node-tfs">
+                <span class="agent-node-badge badge-cyan">NODE 1</span>
+                <div class="agent-node-title">TFS Retrieval Agent</div>
+                <div class="agent-node-sub">WIQL + Batch Fetch + Pruning</div>
+              </div>
+
+              <!-- Connector -->
+              <div class="flow-arrow">
+                <span>tfs_items</span>
+                <svg width="32" height="16" viewBox="0 0 32 16" fill="none"><path d="M0 8h26m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2"/></svg>
+              </div>
+
+              <!-- Node 2: RAG Retrieval -->
+              <div class="agent-node" data-agent="rag" id="flow-node-rag">
+                <span class="agent-node-badge badge-purple">NODE 2</span>
+                <div class="agent-node-title">RAG Context Agent</div>
+                <div class="agent-node-sub">ChromaDB RBAC Filter</div>
+              </div>
+
+              <!-- Connector -->
+              <div class="flow-arrow">
+                <span>rag_context</span>
+                <svg width="32" height="16" viewBox="0 0 32 16" fill="none"><path d="M0 8h26m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2"/></svg>
+              </div>
+
+              <!-- Node 3: Synthesis / Drafting -->
+              <div class="agent-node" data-agent="drafting" id="flow-node-drafting">
+                <span class="agent-node-badge badge-cyan">NODE 3</span>
+                <div class="agent-node-title">Drafting Agent</div>
+                <div class="agent-node-sub">Local Llama 3 (Ollama)</div>
+              </div>
+
+              <!-- Connector -->
+              <div class="flow-arrow">
+                <span>draft</span>
+                <svg width="32" height="16" viewBox="0 0 32 16" fill="none"><path d="M0 8h26m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2"/></svg>
+              </div>
+
+              <!-- Node 4: Validation Agent -->
+              <div class="agent-node decision-node" data-agent="validation" id="flow-node-val">
+                <span class="agent-node-badge badge-purple">NODE 4</span>
+                <div class="agent-node-title">Validation Agent</div>
+                <div class="agent-node-sub">Pydantic Contract Check</div>
+              </div>
+
+              <!-- Connector -->
+              <div class="flow-arrow">
+                <span>valid?</span>
+                <svg width="32" height="16" viewBox="0 0 32 16" fill="none"><path d="M0 8h26m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2"/></svg>
+              </div>
+
+              <!-- End Node -->
+              <div class="agent-node end-node" data-agent="end" id="flow-node-end" style="min-width: 140px; max-width: 160px;">
+                <span class="agent-node-badge badge-emerald">END (TERMINAL)</span>
+                <div class="agent-node-title">Validated Report</div>
+                <div class="agent-node-sub">Final JSON State</div>
+              </div>
+
+            </div>
+
+            <!-- Self Healing Branch Loop -->
+            <div class="self-healing-loop-container" id="self-healing-loop-card">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <div class="agent-node self-healing" data-agent="correction" id="flow-node-correction" style="min-width: 220px;">
+                  <span class="agent-node-badge badge-amber">NODE 5 (SELF-HEALING)</span>
+                  <div class="agent-node-title">Correction Agent</div>
+                  <div class="agent-node-sub">Reprompts Llama 3 with Errors</div>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); max-width: 450px;">
+                  <strong style="color: var(--amber);">Conditional Feedback Edge:</strong> If Pydantic validation fails and <code>retry_count &lt; 3</code>, the router diverts state to the Correction Agent and loops back to the Validation Agent.
+                </div>
+              </div>
+              <div style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--amber);">
+                route_validation(state) ➔ "correction" ➔ "validation"
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Agent Inspector Detail Box -->
+          <div class="agent-inspector-box" id="agent-inspector-detail">
+            <!-- Left: Description and State -->
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                <span class="badge badge-cyan" id="inspect-node-badge">NODE 1: TFS RETRIEVAL AGENT</span>
+                <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-subtle);" id="inspect-func-name">tfs_retrieval_agent(state: AgentState)</span>
+              </div>
+              <h3 style="font-size: 1.25rem; margin-bottom: 10px;" id="inspect-agent-title">TFS Work Item Retrieval & Pruning Agent</h3>
+              <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 16px;" id="inspect-agent-desc">
+                Executes Stage 1 WIQL query against the Azure DevOps REST API, batch-fetches full ticket metadata, strips HTML tags, and extracts only the essential fields into strongly-typed Pydantic summaries.
+              </p>
+              <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px;">
+                <div style="font-size: 0.78rem; font-weight: 700; color: var(--cyan); text-transform: uppercase; margin-bottom: 4px;">State Mutation</div>
+                <code style="font-family: var(--font-mono); font-size: 0.82rem; color: #a5b4fc;" id="inspect-state-mutation">state["tfs_items"] = [item.model_dump() for item in work_items]</code>
+              </div>
+            </div>
+
+            <!-- Right: Code Snippet / Contract -->
+            <div class="terminal-box" style="margin: 0;">
+              <div class="terminal-header">
+                <span class="terminal-title" id="inspect-code-title">agent_implementation.py</span>
+                <span class="badge badge-purple" id="inspect-contract-badge">PYDANTIC CONTRACT</span>
+              </div>
+              <div class="terminal-body" id="inspect-code-snippet" style="font-size: 0.78rem; max-height: 200px;">
+def tfs_retrieval_agent(state: AgentState) -> AgentState:
+    client = LocalTFSClient()
+    wiql = "SELECT [System.Id] FROM WorkItems WHERE [System.State] = 'Active'"
+    work_items = client.query_work_items(wiql)
+    state["tfs_items"] = [item.model_dump() for item in work_items]
+    return state
+              </div>
             </div>
           </div>
         </div>
@@ -553,6 +712,179 @@ Here is the JSON report:
                 <div style="color: var(--emerald); font-size: 0.85rem;">Result: HTTP 200 OK — Payload received without pipeline failure!</div>
               </div>
               <div class="retry-delay-col" style="color: var(--emerald);">Success in 0.67s</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: FLOWCHART OF FUNCTIONS (EXECUTION PIPELINE) -->
+    <section class="section" id="function-flowchart">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-tag"><span class="badge badge-emerald">Code Inventory & Execution Flow</span></div>
+          <h2 class="section-title">Flowchart of Major Functions</h2>
+          <p class="section-desc">Comprehensive visual breakdown of major functions, decorators, endpoints, and data contracts across all 4 pipeline stages. Click any function card to inspect its signature and docstring.</p>
+        </div>
+
+        <div class="card">
+          <!-- 4-Stage Function Pipeline Grid -->
+          <div class="func-flow-grid">
+            
+            <!-- STAGE 1 COLUMN -->
+            <div class="func-stage-col" id="func-stage-1">
+              <div class="func-stage-header">
+                <div class="func-stage-number">Stage 1</div>
+                <div class="func-stage-title">FastAPI & TFS Ingestion</div>
+              </div>
+
+              <div class="func-card active" data-func="seed_db">
+                <div class="func-card-type">Database</div>
+                <div class="func-card-name">seed_database()</div>
+                <div class="func-card-desc">Populates SQLite database with 12 enterprise work items.</div>
+              </div>
+
+              <div class="func-card" data-func="parse_wiql">
+                <div class="func-card-type">Parser</div>
+                <div class="func-card-name">parse_wiql_to_sql()</div>
+                <div class="func-card-desc">Translates Azure DevOps WIQL query syntax into SQLite SQL.</div>
+              </div>
+
+              <div class="func-card" data-func="api_wiql">
+                <div class="func-card-type">REST Endpoint</div>
+                <div class="func-card-name">POST /_apis/wit/wiql</div>
+                <div class="func-card-desc">Returns flat array of work item IDs matching WIQL query.</div>
+              </div>
+
+              <div class="func-card" data-func="clean_html">
+                <div class="func-card-type">Data Sanitizer</div>
+                <div class="func-card-name">clean_html()</div>
+                <div class="func-card-desc">Strips HTML tags & unescapes entities (82% token reduction).</div>
+              </div>
+            </div>
+
+            <!-- STAGE 2 COLUMN -->
+            <div class="func-stage-col" id="func-stage-2">
+              <div class="func-stage-header">
+                <div class="func-stage-number">Stage 2</div>
+                <div class="func-stage-title">ChromaDB & RBAC RAG</div>
+              </div>
+
+              <div class="func-card" data-func="split_text">
+                <div class="func-card-type">Chunking</div>
+                <div class="func-card-name">split_text()</div>
+                <div class="func-card-desc">Recursive sliding window splitting (300c / 50c overlap).</div>
+              </div>
+
+              <div class="func-card" data-func="chroma_client">
+                <div class="func-card-type">Vector DB</div>
+                <div class="func-card-name">PersistentClient()</div>
+                <div class="func-card-desc">Initializes persistent ChromaDB storage at data/local_chroma_db.</div>
+              </div>
+
+              <div class="func-card" data-func="collection_add">
+                <div class="func-card-type">Embeddings</div>
+                <div class="func-card-name">collection.add()</div>
+                <div class="func-card-desc">Embeds text chunks into 384-dim vectors with RBAC metadata.</div>
+              </div>
+
+              <div class="func-card" data-func="rbac_search">
+                <div class="func-card-type">Security Query</div>
+                <div class="func-card-name">execute_rbac_search()</div>
+                <div class="func-card-desc">Enforces $lte clearance filtering directly at vector layer.</div>
+              </div>
+            </div>
+
+            <!-- STAGE 3 COLUMN -->
+            <div class="func-stage-col" id="func-stage-3">
+              <div class="func-stage-header">
+                <div class="func-stage-number">Stage 3</div>
+                <div class="func-stage-title">LangGraph & Llama 3</div>
+              </div>
+
+              <div class="func-card" data-func="stategraph">
+                <div class="func-card-type">Orchestration</div>
+                <div class="func-card-name">StateGraph(AgentState)</div>
+                <div class="func-card-desc">Compiles state machine with conditional routing edges.</div>
+              </div>
+
+              <div class="func-card" data-func="drafting_agent">
+                <div class="func-card-type">Local LLM</div>
+                <div class="func-card-name">drafting_agent()</div>
+                <div class="func-card-desc">Prompts local Llama 3 (format="json") with zero egress.</div>
+              </div>
+
+              <div class="func-card" data-func="validation_agent">
+                <div class="func-card-type">Contract Validator</div>
+                <div class="func-card-name">validation_agent()</div>
+                <div class="func-card-desc">Enforces Pydantic model_validate() on JSON response.</div>
+              </div>
+
+              <div class="func-card" data-func="correction_agent">
+                <div class="func-card-type">Self-Healing</div>
+                <div class="func-card-name">correction_agent()</div>
+                <div class="func-card-desc">Reprompts Llama 3 with exact ValidationError traceback.</div>
+              </div>
+            </div>
+
+            <!-- STAGE 4 COLUMN -->
+            <div class="func-stage-col" id="func-stage-4">
+              <div class="func-stage-header">
+                <div class="func-stage-number">Stage 4</div>
+                <div class="func-stage-title">Resilience & Gateway</div>
+              </div>
+
+              <div class="func-card" data-func="tenacity_retry">
+                <div class="func-card-type">Decorator</div>
+                <div class="func-card-name">@retry(wait_exponential)</div>
+                <div class="func-card-desc">Tenacity retry policy with randomized ±150ms jitter.</div>
+              </div>
+
+              <div class="func-card" data-func="gateway_call">
+                <div class="func-card-type">Resilience</div>
+                <div class="func-card-name">call_with_retry()</div>
+                <div class="func-card-desc">Executes API queries with automated recovery from 5xx errors.</div>
+              </div>
+
+              <div class="func-card" data-func="structured_llm">
+                <div class="func-card-type">Type-Safety</div>
+                <div class="func-card-name">with_structured_output()</div>
+                <div class="func-card-desc">Forces cloud or local LLMs into type-safe Pydantic objects.</div>
+              </div>
+
+              <div class="func-card" data-func="main_pipeline">
+                <div class="func-card-type">Unified Entry</div>
+                <div class="func-card-name">main.py: run_pipeline()</div>
+                <div class="func-card-desc">Runs entire 4-stage ecosystem end-to-end in one command.</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Function Detail Box -->
+          <div class="func-detail-box" id="func-detail-view">
+            <div>
+              <span class="badge badge-cyan" id="func-detail-badge">DATABASE SEEDER</span>
+              <h3 style="font-size: 1.25rem; margin: 8px 0;" id="func-detail-title">seed_database()</h3>
+              <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; margin-bottom: 14px;" id="func-detail-desc">
+                Reads the raw TFS JSON seed dataset, creates the local SQLite database schema, populates 12 enterprise work items with priority, severity, and HTML descriptions, and generates an offline mock dataset for testing.
+              </p>
+              <div style="font-size: 0.8rem; color: var(--text-subtle);">
+                <strong>Source Module:</strong> <code style="font-family: var(--font-mono); color: var(--cyan);" id="func-detail-module">src/emulator/seeder.py</code>
+              </div>
+            </div>
+
+            <div class="terminal-box" style="margin: 0;">
+              <div class="terminal-header">
+                <span class="terminal-title" id="func-detail-sig-title">Function Signature</span>
+              </div>
+              <div class="terminal-body" id="func-detail-signature" style="font-size: 0.8rem; max-height: 180px;">
+def seed_database(verbose: bool = True) -> None:
+    """
+    Initializes and seeds local_tfs.db with authentic 
+    Azure DevOps enterprise work items.
+    """
+              </div>
             </div>
           </div>
         </div>

@@ -6,6 +6,8 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  initAgentFlowchart();
+  initFunctionFlowchart();
   initPipelineSimulator();
   initRbacExplorer();
   initTokenDiffToggle();
@@ -13,6 +15,265 @@ document.addEventListener('DOMContentLoaded', () => {
   initResilienceSimulator();
   initCopyButtons();
 });
+
+// ----------------------------------------------------------------------------
+// 0. INTERACTIVE FLOWCHART OF AGENTS (LANGGRAPH STATEGRAPH)
+// ----------------------------------------------------------------------------
+function initAgentFlowchart() {
+  const agentNodes = document.querySelectorAll('#agent-flowchart-grid .agent-node, #flow-node-correction');
+  const animateBtn = document.getElementById('animate-agent-flow-btn');
+
+  const inspectBadge = document.getElementById('inspect-node-badge');
+  const inspectFunc = document.getElementById('inspect-func-name');
+  const inspectTitle = document.getElementById('inspect-agent-title');
+  const inspectDesc = document.getElementById('inspect-agent-desc');
+  const inspectMutation = document.getElementById('inspect-state-mutation');
+  const inspectCode = document.getElementById('inspect-code-snippet');
+
+  const agentData = {
+    start: {
+      badge: "ENTRY POINT",
+      func: "workflow.set_entry_point('tfs_retrieval')",
+      title: "Graph Initialization & Trigger",
+      desc: "Initializes the shared AgentState dictionary with the initial user prompt and sets up the execution graph schema.",
+      mutation: "state = {'messages': ['...'], 'retry_count': 0, 'validation_errors': None}",
+      code: `workflow = StateGraph(AgentState)\nworkflow.set_entry_point("tfs_retrieval")\nworkflow.add_edge("tfs_retrieval", "rag_retrieval")`
+    },
+    tfs: {
+      badge: "NODE 1: TFS RETRIEVAL AGENT",
+      func: "tfs_retrieval_agent(state: AgentState) -> AgentState",
+      title: "TFS Work Item Retrieval & Pruning Agent",
+      desc: "Executes Stage 1 WIQL query against the Azure DevOps REST API, batch-fetches full ticket metadata, strips HTML tags, and extracts only the essential fields into strongly-typed Pydantic summaries.",
+      mutation: "state['tfs_items'] = [item.model_dump() for item in work_items]",
+      code: `def tfs_retrieval_agent(state: AgentState) -> AgentState:\n    client = LocalTFSClient()\n    wiql = "SELECT [System.Id] FROM WorkItems WHERE [System.State] = 'Active'"\n    work_items = client.query_work_items(wiql)\n    state["tfs_items"] = [item.model_dump() for item in work_items]\n    return state`
+    },
+    rag: {
+      badge: "NODE 2: RAG CONTEXT AGENT",
+      func: "rag_retrieval_agent(state: AgentState) -> AgentState",
+      title: "ChromaDB RBAC Context Retrieval Agent",
+      desc: "Extracts keywords from active blockers and queries local ChromaDB vector store using mathematical where={'clearance': {'$lte': clearance}} filtering.",
+      mutation: "state['rag_context'] = '\\n\\n'.join(combined_context)",
+      code: `def rag_retrieval_agent(state: AgentState) -> AgentState:\n    user_clearance = state.get("user_clearance", 2)\n    chunks = execute_rbac_search(\n        query_text="NTLM timeout SLA retry policy",\n        user_clearance=user_clearance,\n        top_k=2\n    )\n    state["rag_context"] = "\\n\\n".join([c["content"] for c in chunks])\n    return state`
+    },
+    drafting: {
+      badge: "NODE 3: SYNTHESIS / DRAFTING AGENT",
+      func: "drafting_agent(state: AgentState) -> AgentState",
+      title: "Zero-Egress Llama 3 Synthesis Agent",
+      desc: "Injects pruned TFS items and RBAC SLA guidelines into local Llama 3 (via ChatOllama with format='json') to draft a structured incident synthesis.",
+      mutation: "state['report_draft'] = response.content.strip()",
+      code: `def drafting_agent(state: AgentState) -> AgentState:\n    llm = ChatOllama(model="llama3", format="json", temperature=0.1)\n    prompt = f"Synthesize these work items and SLA rules into JSON:\\n{state['tfs_items']}"\n    response = llm.invoke(prompt)\n    state["report_draft"] = response.content.strip()\n    return state`
+    },
+    validation: {
+      badge: "NODE 4: VALIDATION AGENT",
+      func: "validation_agent(state: AgentState) -> AgentState",
+      title: "Pydantic Contract Enforcement Agent",
+      desc: "Validates the raw LLM JSON draft against SprintReportSchema. If valid, populates final_report and clears errors; if invalid, captures ValidationError messages.",
+      mutation: "state['final_report'] = validated_obj.model_dump(); state['validation_errors'] = None",
+      code: `def validation_agent(state: AgentState) -> AgentState:\n    try:\n        data = json.loads(_extract_json_str(state['report_draft']))\n        validated = SprintReportSchema.model_validate(data)\n        state['final_report'] = validated.model_dump()\n        state['validation_errors'] = None\n    except ValidationError as e:\n        state['validation_errors'] = str(e)\n    return state`
+    },
+    correction: {
+      badge: "NODE 5: CORRECTION AGENT (SELF-HEALING)",
+      func: "correction_agent(state: AgentState) -> AgentState",
+      title: "Self-Healing Schema Correction Agent",
+      desc: "Triggered whenever validation fails. Increments retry_count and reprompts Llama 3 with the exact ValidationError traceback and previous malformed draft to self-heal.",
+      mutation: "state['retry_count'] += 1; state['report_draft'] = corrected_content",
+      code: `def correction_agent(state: AgentState) -> AgentState:\n    state['retry_count'] += 1\n    llm = ChatOllama(model="llama3", format="json", temperature=0.0)\n    prompt = f"Fix these schema errors in JSON:\\nERROR: {state['validation_errors']}"\n    response = llm.invoke(prompt)\n    state['report_draft'] = response.content.strip()\n    return state`
+    },
+    end: {
+      badge: "TERMINAL NODE: OUTPUT",
+      func: "app.invoke(initial_state) -> final_state",
+      title: "Final Validated Sprint Report Output",
+      desc: "Graph reaches END node. Returns the fully validated, deterministic, strongly-typed JSON report with zero egress and guaranteed contract compliance.",
+      mutation: "final_report = state['final_report']",
+      code: `workflow.add_conditional_edges(\n    "validation",\n    route_validation,\n    {"correction": "correction", "end": END}\n)\napp = workflow.compile()\nfinal_state = app.invoke(initial_state)`
+    }
+  };
+
+  agentNodes.forEach(node => {
+    node.addEventListener('click', () => {
+      agentNodes.forEach(n => n.classList.remove('selected'));
+      node.classList.add('selected');
+
+      const agentKey = node.dataset.agent;
+      const data = agentData[agentKey];
+      if (!data) return;
+
+      if (inspectBadge) inspectBadge.textContent = data.badge;
+      if (inspectFunc) inspectFunc.textContent = data.func;
+      if (inspectTitle) inspectTitle.textContent = data.title;
+      if (inspectDesc) inspectDesc.textContent = data.desc;
+      if (inspectMutation) inspectMutation.textContent = data.mutation;
+      if (inspectCode) inspectCode.textContent = data.code;
+    });
+  });
+
+  if (animateBtn) {
+    animateBtn.addEventListener('click', async () => {
+      animateBtn.disabled = true;
+      const flowOrder = ['start', 'tfs', 'rag', 'drafting', 'validation', 'correction', 'validation', 'end'];
+
+      for (const key of flowOrder) {
+        agentNodes.forEach(n => {
+          if (n.dataset.agent === key) {
+            n.click();
+            n.style.transform = 'translateY(-8px) scale(1.06)';
+            n.style.borderColor = 'var(--cyan)';
+          } else {
+            n.style.transform = '';
+            n.style.borderColor = '';
+          }
+        });
+        await new Promise(r => setTimeout(r, 700));
+      }
+
+      animateBtn.disabled = false;
+    });
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 0.5. INTERACTIVE FLOWCHART OF MAJOR FUNCTIONS
+// ----------------------------------------------------------------------------
+function initFunctionFlowchart() {
+  const funcCards = document.querySelectorAll('.func-card');
+  const detailBadge = document.getElementById('func-detail-badge');
+  const detailTitle = document.getElementById('func-detail-title');
+  const detailDesc = document.getElementById('func-detail-desc');
+  const detailModule = document.getElementById('func-detail-module');
+  const detailSignature = document.getElementById('func-detail-signature');
+
+  const funcData = {
+    seed_db: {
+      badge: "DATABASE SEEDER",
+      title: "seed_database(verbose: bool = True) -> None",
+      desc: "Reads the raw TFS JSON seed dataset, creates the local SQLite database schema, populates 12 enterprise work items with priority, severity, and HTML descriptions, and generates an offline mock dataset.",
+      module: "src/emulator/seeder.py",
+      sig: `def seed_database(verbose: bool = True) -> None:\n    \"\"\"Initializes and seeds local_tfs.db with authentic Azure DevOps enterprise work items.\"\"\"`
+    },
+    parse_wiql: {
+      badge: "QUERY TRANSLATOR",
+      title: "parse_wiql_to_sql(wiql_query: str) -> tuple[str, list]",
+      desc: "Translates Azure DevOps WIQL syntax (e.g. [System.State] = 'Active' and [System.WorkItemType] = 'Bug') into parameterized SQLite SQL queries.",
+      module: "src/emulator/server.py",
+      sig: `def parse_wiql_to_sql(wiql_query: str) -> tuple[str, list]:\n    \"\"\"Translates Azure DevOps WIQL syntax into SQLite SQL.\"\"\"`
+    },
+    api_wiql: {
+      badge: "FASTAPI STAGE 1 ENDPOINT",
+      title: "POST /_apis/wit/wiql",
+      desc: "Stage 1 REST API endpoint. Accepts a WIQL JSON payload, executes SQL translation against SQLite, and returns an array of matching work item IDs.",
+      module: "src/emulator/server.py",
+      sig: `@app.post("/_apis/wit/wiql")\ndef execute_wiql(payload: WIQLRequest) -> dict:\n    \"\"\"Returns: {'workItems': [{'id': 10241}, ...]}\"\"\"`
+    },
+    clean_html: {
+      badge: "DATA SANITIZER & PRUNER",
+      title: "clean_html(raw_html: str) -> str",
+      desc: "Strips all HTML tags (<div>, <p>, <b>, <code>) and unescapes XML/HTML entities (&lt;, &gt;) to eliminate 82% of verbose context window overhead.",
+      module: "src/emulator/client.py",
+      sig: `@staticmethod\ndef clean_html(raw_html: str) -> str:\n    \"\"\"Strips HTML tags & unescapes entities for clean LLM prompt context.\"\"\"`
+    },
+    split_text: {
+      badge: "SEMANTIC CHUNKER",
+      title: "RecursiveCharacterTextSplitter.split_text(text: str) -> List[str]",
+      desc: "Splits enterprise markdown architecture specifications using sliding window chunks (300 characters, 50 character overlap) while preserving markdown header structure.",
+      module: "src/rag/indexer.py",
+      sig: `splitter = RecursiveCharacterTextSplitter(\n    chunk_size=300,\n    chunk_overlap=50,\n    separators=["\\n## ", "\\n\\n", "\\n", " ", ""]\n)`
+    },
+    chroma_client: {
+      badge: "PERSISTENT VECTOR DB",
+      title: "chromadb.PersistentClient(path: str)",
+      desc: "Initializes local on-disk ChromaDB persistent vector storage at data/local_chroma_db with zero cloud dependencies.",
+      module: "src/rag/indexer.py",
+      sig: `client = chromadb.PersistentClient(path="./data/local_chroma_db")\ncollection = client.get_or_create_collection(name="enterprise_architecture")`
+    },
+    collection_add: {
+      badge: "VECTOR EMBEDDING & RBAC",
+      title: "collection.add(documents, metadatas, ids)",
+      desc: "Embeds text chunks into 384-dimensional dense vectors using local ONNX all-MiniLM-L6-v2 embeddings and attaches RBAC clearance metadata tags (Levels 1, 2, 3).",
+      module: "src/rag/indexer.py",
+      sig: `collection.add(\n    documents=chunks,\n    metadatas=[{"clearance": 2, "source": "adjudication_architecture.md", ...}],\n    ids=[f"chunk_{i}"]\n)`
+    },
+    rbac_search: {
+      badge: "MATHEMATICAL RBAC QUERY",
+      title: "execute_rbac_search(query_text, user_clearance, top_k=2) -> List[dict]",
+      desc: "Executes cosine similarity search against ChromaDB while enforcing where={'clearance': {'$lte': user_clearance}} at the vector database mathematical layer.",
+      module: "src/rag/search.py",
+      sig: `def execute_rbac_search(query_text: str, user_clearance: int = 1, top_k: int = 2) -> List[dict]:\n    \"\"\"Filters out unauthorized clearance tiers directly in vector math.\"\"\"`
+    },
+    stategraph: {
+      badge: "LANGGRAPH STATE MACHINE",
+      title: "StateGraph(AgentState) -> CompiledGraph",
+      desc: "Defines the multi-agent graph nodes, directional edges, and conditional routing functions for autonomous error-recovery and state passing.",
+      module: "src/agents/orchestrator.py",
+      sig: `workflow = StateGraph(AgentState)\nworkflow.add_node("tfs_retrieval", tfs_retrieval_agent)\nworkflow.add_node("rag_retrieval", rag_retrieval_agent)\nworkflow.add_node("drafting", drafting_agent)\nworkflow.add_node("validation", validation_agent)\nworkflow.add_node("correction", correction_agent)`
+    },
+    drafting_agent: {
+      badge: "LOCAL LLM INVOCATION",
+      title: "drafting_agent(state: AgentState) -> AgentState",
+      desc: "Invokes local zero-egress Llama 3 via ChatOllama(model='llama3', format='json', temperature=0.1) to synthesize TFS work items and internal SLA guidelines.",
+      module: "src/agents/orchestrator.py",
+      sig: `def drafting_agent(state: AgentState) -> AgentState:\n    llm = ChatOllama(model="llama3", format="json", temperature=0.1)\n    response = llm.invoke(system_prompt)\n    state["report_draft"] = response.content.strip()\n    return state`
+    },
+    validation_agent: {
+      badge: "PYDANTIC CONTRACT CHECK",
+      title: "validation_agent(state: AgentState) -> AgentState",
+      desc: "Extracts JSON substring from LLM response and validates against SprintReportSchema.populating final_report on success or capturing ValidationError traces.",
+      module: "src/agents/orchestrator.py",
+      sig: `def validation_agent(state: AgentState) -> AgentState:\n    json_str = _extract_json_str(state["report_draft"])\n    validated = SprintReportSchema.model_validate(json.loads(json_str))\n    state["final_report"] = validated.model_dump()\n    return state`
+    },
+    correction_agent: {
+      badge: "AUTONOMOUS RECOVERY",
+      title: "correction_agent(state: AgentState) -> AgentState",
+      desc: "Self-healing node triggered on validation failures. Injects the exact ValidationError traceback back into Llama 3 with zero human intervention.",
+      module: "src/agents/orchestrator.py",
+      sig: `def correction_agent(state: AgentState) -> AgentState:\n    state["retry_count"] += 1\n    llm = ChatOllama(model="llama3", format="json", temperature=0.0)\n    response = llm.invoke(correction_prompt)\n    state["report_draft"] = response.content.strip()\n    return state`
+    },
+    tenacity_retry: {
+      badge: "FAULT-TOLERANT DECORATOR",
+      title: "@retry(wait=wait_exponential_jitter, stop=stop_after_attempt(3))",
+      desc: "Production retry policy using Tenacity to automatically intercept transient 503, 504, and connection reset errors with randomized ±150ms jitter.",
+      module: "src/resilience/gateway.py",
+      sig: `@retry(\n    stop=stop_after_attempt(3),\n    wait=wait_exponential(multiplier=1, min=0.5, max=5) + wait_random(-0.15, 0.15),\n    retry=retry_if_exception_type(TransientHTTPError)\n)`
+    },
+    gateway_call: {
+      badge: "RESILIENCE GATEWAY",
+      title: "LocalTFSGateway.call_with_retry(endpoint, params) -> dict",
+      desc: "Wraps raw HTTP calls in exponential backoff policies, preventing transient domain controller downtime from crashing the agent pipeline.",
+      module: "src/resilience/gateway.py",
+      sig: `def call_with_retry(self, endpoint: str, params: dict = None) -> dict:\n    \"\"\"Resilient execution wrapper over TFS REST endpoints.\"\"\"`
+    },
+    structured_llm: {
+      badge: "TYPE-SAFE INTERFACE",
+      title: "llm.with_structured_output(PydanticModel)",
+      desc: "Binds a Pydantic schema to any LLM (Ollama Llama 3, Google Gemini, OpenAI GPT-4o, Anthropic Claude), guaranteeing strongly typed response parsing.",
+      module: "legacy_scripts/real_llm_guide.py",
+      sig: `structured_llm = llm.with_structured_output(WorkItemRemediation)\nresult: WorkItemRemediation = structured_llm.invoke("Bug 10241: NTLM timeout...")`
+    },
+    main_pipeline: {
+      badge: "UNIFIED CLI & PIPELINE",
+      title: "main.py: run_pipeline() -> None",
+      desc: "Master orchestration runner executing Seeder -> ChromaDB Indexer -> LangGraph Multi-Agent Orchestrator end-to-end in a single command.",
+      module: "main.py",
+      sig: `def run_pipeline() -> None:\n    \"\"\"Runs entire TFS DevOps AI Agent ecosystem end-to-end.\"\"\"`
+    }
+  };
+
+  funcCards.forEach(card => {
+    card.addEventListener('click', () => {
+      funcCards.forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+
+      const funcKey = card.dataset.func;
+      const data = funcData[funcKey];
+      if (!data) return;
+
+      if (detailBadge) detailBadge.textContent = data.badge;
+      if (detailTitle) detailTitle.textContent = data.title;
+      if (detailDesc) detailDesc.textContent = data.desc;
+      if (detailModule) detailModule.textContent = data.module;
+      if (detailSignature) detailSignature.textContent = data.sig;
+    });
+  });
+}
 
 // ----------------------------------------------------------------------------
 // 1. LIVE PIPELINE SIMULATOR

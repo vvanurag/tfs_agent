@@ -952,3 +952,262 @@ h1, h2, h3, h4, h5, h6 {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ==========================================================================
+   FLOWCHART OF AGENTS & FLOWCHART OF FUNCTIONS STYLES
+   ========================================================================== */
+
+/* Agent StateGraph Flowchart */
+.flowchart-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.flowchart-canvas {
+  background: radial-gradient(circle at center, rgba(13, 19, 34, 0.95), rgba(7, 10, 18, 0.98));
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 36px 24px;
+  position: relative;
+  overflow-x: auto;
+}
+
+.flow-diagram-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 950px;
+  position: relative;
+  padding: 20px 10px;
+}
+
+.agent-node {
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 16px;
+  min-width: 175px;
+  max-width: 205px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  box-shadow: var(--shadow-sm);
+}
+
+.agent-node:hover, .agent-node.selected {
+  transform: translateY(-6px) scale(1.03);
+  border-color: var(--cyan);
+  box-shadow: 0 0 30px rgba(6, 182, 212, 0.35);
+}
+
+.agent-node.self-healing {
+  border-color: rgba(245, 158, 11, 0.5);
+}
+.agent-node.self-healing:hover, .agent-node.self-healing.selected {
+  border-color: var(--amber);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.35);
+}
+
+.agent-node.decision-node {
+  border-color: rgba(139, 92, 246, 0.5);
+}
+.agent-node.decision-node:hover, .agent-node.decision-node.selected {
+  border-color: var(--purple);
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.35);
+}
+
+.agent-node.end-node {
+  border-color: rgba(16, 185, 129, 0.5);
+}
+.agent-node.end-node:hover, .agent-node.end-node.selected {
+  border-color: var(--emerald);
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.35);
+}
+
+.agent-node-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.agent-node-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text-main);
+}
+
+.agent-node-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* Connector Arrow */
+.flow-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--cyan);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  min-width: 48px;
+  text-align: center;
+}
+.flow-arrow svg {
+  stroke: var(--cyan);
+  filter: drop-shadow(0 0 6px var(--cyan-glow));
+}
+
+/* Loop Arrow for Self Healing */
+.self-healing-loop-container {
+  margin-top: 24px;
+  background: rgba(245, 158, 11, 0.05);
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .self-healing-loop-container {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* Agent Inspector Detail Panel */
+.agent-inspector-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 24px;
+  transition: all 0.3s;
+}
+
+@media (max-width: 850px) {
+  .agent-inspector-box {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Function Pipeline Flowchart Styles */
+.func-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .func-flow-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .func-flow-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.func-stage-col {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+.func-stage-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.func-stage-number {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.func-stage-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.func-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.func-card:hover, .func-card.active {
+  border-color: var(--cyan);
+  background: rgba(6, 182, 212, 0.08);
+  transform: translateX(4px);
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.15);
+}
+
+.func-card-name {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #38bdf8;
+  margin-bottom: 4px;
+}
+
+.func-card-type {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-subtle);
+  margin-bottom: 6px;
+}
+
+.func-card-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* Function Detail Modal / Box */
+.func-detail-box {
+  background: #040711;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 850px) {
+  .func-detail-box {
+    grid-template-columns: 1fr;
+  }
+}
+
