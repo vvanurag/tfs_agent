@@ -50,12 +50,24 @@ def rag_retrieval_agent(state: AgentState) -> AgentState:
     print(f"   [RAG Agent] Injected {len(combined_context)} RBAC-verified architecture context chunks.")
     return state
 
+def _extract_json_str(raw_text: str) -> str:
+    """Robustly extracts JSON substring from markdown fences or conversational chatter."""
+    if not raw_text:
+        return ""
+    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    match = re.search(r"(\{.*\})", raw_text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return raw_text.strip()
+
 def drafting_agent(state: AgentState) -> AgentState:
     print("\n" + "=" * 65)
     print("-> [Node 3: Drafting Agent] Prompting local Llama 3 to synthesize report...")
     print("=" * 65)
     
-    llm = ChatOllama(model="llama3", temperature=0.1)
+    llm = ChatOllama(model="llama3", format="json", temperature=0.1)
     tfs_text = json.dumps(state["tfs_items"][:5], indent=2)
     rag_text = state["rag_context"]
     
@@ -82,12 +94,7 @@ Do NOT include any markdown code fences (like ```json), commentary, or extra tex
 """
 
     response = llm.invoke(system_prompt)
-    content = response.content.strip()
-    content = re.sub(r"^```json\s*", "", content)
-    content = re.sub(r"^```\s*", "", content)
-    content = re.sub(r"\s*```$", "", content)
-    
-    state["report_draft"] = content.strip()
+    state["report_draft"] = response.content.strip()
     return state
 
 def validation_agent(state: AgentState) -> AgentState:
@@ -95,9 +102,10 @@ def validation_agent(state: AgentState) -> AgentState:
     print("-> [Node 4: Validation Agent] Enforcing Pydantic SprintReportSchema...")
     print("=" * 65)
     
-    draft = state.get("report_draft", "")
+    raw_draft = state.get("report_draft", "")
     try:
-        parsed_dict = json.loads(draft)
+        json_str = _extract_json_str(raw_draft)
+        parsed_dict = json.loads(json_str)
         validated_obj = SprintReportSchema.model_validate(parsed_dict)
         state["final_report"] = validated_obj.model_dump()
         state["validation_errors"] = None
@@ -119,7 +127,7 @@ def correction_agent(state: AgentState) -> AgentState:
     print(f"   Fixing Error: {state['validation_errors']}")
     print("=" * 65)
     
-    llm = ChatOllama(model="llama3", temperature=0.1)
+    llm = ChatOllama(model="llama3", format="json", temperature=0.1)
     correction_prompt = f"""Your previous output failed strict enterprise Pydantic validation.
 
 VALIDATION ERROR:
@@ -139,12 +147,7 @@ Please fix the error and output ONLY the corrected, valid JSON object with ALL r
 Output ONLY raw JSON with no explanation or formatting tags.
 """
     response = llm.invoke(correction_prompt)
-    content = response.content.strip()
-    content = re.sub(r"^```json\s*", "", content)
-    content = re.sub(r"^```\s*", "", content)
-    content = re.sub(r"\s*```$", "", content)
-    
-    state["report_draft"] = content.strip()
+    state["report_draft"] = response.content.strip()
     return state
 
 def route_validation(state: AgentState) -> str:

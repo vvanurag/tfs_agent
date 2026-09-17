@@ -34,25 +34,41 @@ class AgentState(TypedDict):
 
 
 # ---------------------------------------------------------------------------
-# 2. SPECIALIZED NODES
+# 2. SPECIALIZED NODES & UTILITIES
 # ---------------------------------------------------------------------------
+def _extract_json_str(raw_text: str) -> str:
+    """Robustly extracts JSON object from markdown fences or surrounding chatter."""
+    if not raw_text:
+        return ""
+    # Check for markdown code fences ```json ... ``` or ``` ... ```
+    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    # Check for outermost { ... }
+    match = re.search(r"(\{.*\})", raw_text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return raw_text.strip()
+
+
 def drafting_node(state: AgentState) -> AgentState:
     """Drafts report using local Llama 3."""
     print("\n-> [Node 1: Drafting Agent] Prompting Llama 3 to draft JSON...")
-    llm = ChatOllama(model="llama3", temperature=0.1)
+    llm = ChatOllama(model="llama3", format="json", temperature=0.1)
     
     prompt = f"""You are a DevOps assistant. Create a JSON report for this task:
 {state['messages'][0]}
 
-Output ONLY a JSON object with:
-- sprint_id: (e.g. 'Sprint 12')
-- status: ('On Track' or 'At Risk')
-- critical_blockers: (list of strings)
-- remediation_summary: (string)
+Output ONLY a JSON object matching this exact schema:
+{{
+  "sprint_id": "Sprint 12",
+  "status": "At Risk",
+  "critical_blockers": ["NTLM timeouts on authentication", "SQLite lock errors"],
+  "remediation_summary": "Specific remediation actions"
+}}
 """
     response = llm.invoke(prompt)
-    content = re.sub(r"^```json\s*|^```\s*|\s*```$", "", response.content.strip())
-    state["report_draft"] = content
+    state["report_draft"] = response.content.strip()
     return state
 
 
@@ -60,7 +76,8 @@ def validation_node(state: AgentState) -> AgentState:
     """Validates output against Pydantic schema."""
     print("-> [Node 2: Validation Agent] Enforcing SprintReportSchema contract...")
     try:
-        data = json.loads(state["report_draft"])
+        json_str = _extract_json_str(state.get("report_draft", ""))
+        data = json.loads(json_str)
         validated = SprintReportSchema.model_validate(data)
         state["final_report"] = validated.model_dump()
         state["validation_errors"] = None
@@ -76,16 +93,21 @@ def correction_node(state: AgentState) -> AgentState:
     state["retry_count"] += 1
     print(f"-> [Node 3: Correction Agent] SELF-HEALING (Attempt {state['retry_count']}/3)...")
     
-    llm = ChatOllama(model="llama3", temperature=0.0)
-    prompt = f"""Fix the validation error in this JSON:
+    llm = ChatOllama(model="llama3", format="json", temperature=0.0)
+    prompt = f"""Fix the validation error in this JSON report:
 ERROR: {state['validation_errors']}
 PREVIOUS DRAFT: {state['report_draft']}
 
-Output ONLY valid JSON with 'sprint_id', 'status', 'critical_blockers', and 'remediation_summary'.
+Return ONLY valid JSON matching this schema:
+{{
+  "sprint_id": "Sprint 12",
+  "status": "At Risk",
+  "critical_blockers": ["string 1", "string 2"],
+  "remediation_summary": "string"
+}}
 """
     response = llm.invoke(prompt)
-    content = re.sub(r"^```json\s*|^```\s*|\s*```$", "", response.content.strip())
-    state["report_draft"] = content
+    state["report_draft"] = response.content.strip()
     return state
 
 
