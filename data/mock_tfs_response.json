@@ -1,0 +1,281 @@
+{
+  "count": 12,
+  "value": [
+    {
+      "id": 10241,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10241",
+      "fields": {
+        "System.Id": 10241,
+        "System.Title": "NTLM Handshake Timeout Exception in Adjudication Service",
+        "System.WorkItemType": "Bug",
+        "System.State": "Active",
+        "System.AssignedTo": {
+          "displayName": "Jane Doe",
+          "id": "guid-10241",
+          "uniqueName": "jane.doe@enterprise.local"
+        },
+        "System.Description": "<div><b>Error:</b> Connection timed out after 30000ms during NTLM handshake with legacy directory services.</div><div><p>Stack trace indicates TCP connection reset by peer during negotiation phase. Need to implement <i>jittered exponential backoff</i> and retry policy.</p></div>",
+        "Microsoft.VSTS.Common.Priority": 1,
+        "Microsoft.VSTS.Common.Severity": "1 - Critical",
+        "System.AreaPath": "CoreEngine\\Authentication",
+        "System.IterationPath": "Sprint 12",
+        "System.CreatedDate": "2026-09-10T08:30:00Z",
+        "System.Tags": "NTLM; Timeout; HighPriority"
+      }
+    },
+    {
+      "id": 10242,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10242",
+      "fields": {
+        "System.Id": 10242,
+        "System.Title": "Update RBAC Clearance Cache for ChromaDB Retrieval",
+        "System.WorkItemType": "Task",
+        "System.State": "Active",
+        "System.AssignedTo": {
+          "displayName": "John Smith",
+          "id": "guid-10242",
+          "uniqueName": "john.smith@enterprise.local"
+        },
+        "System.Description": "<div>Ensure metadata filters (<code>clearance &lt;= user_level</code>) apply cleanly to all vector similarity queries before document chunks are returned to the LLM.</div>",
+        "Microsoft.VSTS.Common.Priority": 2,
+        "Microsoft.VSTS.Common.Severity": "3 - Medium",
+        "System.AreaPath": "AI\\RAG",
+        "System.IterationPath": "Sprint 12",
+        "System.CreatedDate": "2026-09-11T09:15:00Z",
+        "System.Tags": "RBAC; ChromaDB; Security"
+      }
+    },
+    {
+      "id": 10243,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10243",
+      "fields": {
+        "System.Id": 10243,
+        "System.Title": "Database Connection Pool Exhaustion under Peak Traffic",
+        "System.WorkItemType": "Bug",
+        "System.State": "Active",
+        "System.AssignedTo": {
+          "displayName": "Alex Rivera",
+          "id": "guid-10243",
+          "uniqueName": "alex.rivera@enterprise.local"
+        },
+        "System.Description": "<div><b>Issue:</b> SQLite connection handles are not being returned to the pool during concurrent FastAPI worker requests.</div><div><b>Remediation:</b> Set <code>check_same_thread=False</code> and implement a connection lease timeout manager.</div>",
+        "Microsoft.VSTS.Common.Priority": 1,
+        "Microsoft.VSTS.Common.Severity": "2 - High",
+        "System.AreaPath": "CoreEngine\\Database",
+        "System.IterationPath": "Sprint 12",
+        "System.CreatedDate": "2026-09-11T14:20:00Z",
+        "System.Tags": "DB; ConnectionPool; Performance"
+      }
+    },
+    {
+      "id": 10244,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10244",
+      "fields": {
+        "System.Id": 10244,
+        "System.Title": "Zero-Egress Proxy Filter Gateway Implementation",
+        "System.WorkItemType": "User Story",
+        "System.State": "Active",
+        "System.AssignedTo": {
+          "displayName": "Priya Sharma",
+          "id": "guid-10244",
+          "uniqueName": "priya.sharma@enterprise.local"
+        },
+        "System.Description": "<div>As a Compliance Officer, I want all outbound network requests from the AI Agent pipeline blocked at the kernel/socket level so that proprietary code and PHI cannot egress to external cloud APIs.</div>",
+        "Microsoft.VSTS.Common.Priority": 2,
+        "Microsoft.VSTS.Common.Severity": "3 - Medium",
+        "System.AreaPath": "Security\\ZeroEgress",
+        "System.IterationPath": "Sprint 12",
+        "System.CreatedDate": "2026-09-12T10:00:00Z",
+        "System.Tags": "Security; Compliance; ZeroEgress"
+      }
+    },
+    {
+      "id": 10245,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10245",
+      "fields": {
+        "System.Id": 10245,
+        "System.Title": "ChromaDB Embedding Dimension Mismatch on Document Ingest",
+        "System.WorkItemType": "Bug",
+        "System.State": "Active",
+        "System.AssignedTo": {
+          "displayName": "Jane Doe",
+          "id": "guid-10245",
+          "uniqueName": "jane.doe@enterprise.local"
+        },
+        "System.Description": "<div><b>Error:</b> <code>ValueError: Embedding dimension 384 does not match collection dimension 768</code> when running text chunker against security policy docs.</div>",
+        "Microsoft.VSTS.Common.Priority": 2,
+        "Microsoft.VSTS.Common.Severity": "2 - High",
+        "System.AreaPath": "AI\\RAG",
+        "System.IterationPath": "Sprint 12",
+        "System.CreatedDate": "2026-09-12T11:45:00Z",
+        "System.Tags": "ChromaDB; Embeddings; RAG"
+      }
+    },
+    {
+      "id": 10246,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10246",
+      "fields": {
+        "System.Id": 10246,
+        "System.Title": "Implement Jittered Exponential Backoff for REST Gateway",
+        "System.WorkItemType": "Task",
+        "System.State": "Resolved",
+        "System.AssignedTo": {
+          "displayName": "John Smith",
+          "id": "guid-10246",
+          "uniqueName": "john.smith@enterprise.local"
+        },
+        "System.Description": "<div>Added Tenacity retry handlers around all HTTP requests with exponential backoff and random jitter to mitigate transient 500/503 errors.</div>",
+        "Microsoft.VSTS.Common.Priority": 3,
+        "Microsoft.VSTS.Common.Severity": "4 - Low",
+        "System.AreaPath": "CoreEngine\\Resilience",
+        "System.IterationPath": "Sprint 11",
+        "System.CreatedDate": "2026-09-05T08:00:00Z",
+        "System.Tags": "Tenacity; Resilience; HTTP"
+      }
+    },
+    {
+      "id": 10247,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10247",
+      "fields": {
+        "System.Id": 10247,
+        "System.Title": "Migrate Legacy AD Authentication to Kerberos / NTLM v2",
+        "System.WorkItemType": "Feature",
+        "System.State": "Active",
+        "System.AssignedTo": {
+          "displayName": "Marcus Vance",
+          "id": "guid-10247",
+          "uniqueName": "marcus.vance@enterprise.local"
+        },
+        "System.Description": "<div>Enterprise infrastructure team is deprecating NTLM v1. We must migrate all internal service-to-service connectors to Kerberos or NTLM v2 with session signing.</div>",
+        "Microsoft.VSTS.Common.Priority": 1,
+        "Microsoft.VSTS.Common.Severity": "2 - High",
+        "System.AreaPath": "Security\\Auth",
+        "System.IterationPath": "Sprint 12",
+        "System.CreatedDate": "2026-09-08T16:00:00Z",
+        "System.Tags": "Auth; Kerberos; NTLM"
+      }
+    },
+    {
+      "id": 10248,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10248",
+      "fields": {
+        "System.Id": 10248,
+        "System.Title": "LangGraph Node State Persistence across Worker Restarts",
+        "System.WorkItemType": "Task",
+        "System.State": "Active",
+        "System.AssignedTo": {
+          "displayName": "Priya Sharma",
+          "id": "guid-10248",
+          "uniqueName": "priya.sharma@enterprise.local"
+        },
+        "System.Description": "<div>Implement SQLite/MemorySaver checkpointing in LangGraph StateGraph so long-running multi-agent runs can be audited and resumed on transient worker crashes.</div>",
+        "Microsoft.VSTS.Common.Priority": 2,
+        "Microsoft.VSTS.Common.Severity": "3 - Medium",
+        "System.AreaPath": "AI\\Orchestration",
+        "System.IterationPath": "Sprint 12",
+        "System.CreatedDate": "2026-09-13T09:00:00Z",
+        "System.Tags": "LangGraph; State; MultiAgent"
+      }
+    },
+    {
+      "id": 10249,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10249",
+      "fields": {
+        "System.Id": 10249,
+        "System.Title": "Memory Leak in Persistent SQLite Connection Pool",
+        "System.WorkItemType": "Bug",
+        "System.State": "Closed",
+        "System.AssignedTo": {
+          "displayName": "Alex Rivera",
+          "id": "guid-10249",
+          "uniqueName": "alex.rivera@enterprise.local"
+        },
+        "System.Description": "<div>Cursor objects were not closed in try...finally blocks, causing gradual RAM buildup. Fixed by adopting context managers for all database connections.</div>",
+        "Microsoft.VSTS.Common.Priority": 3,
+        "Microsoft.VSTS.Common.Severity": "3 - Medium",
+        "System.AreaPath": "CoreEngine\\Database",
+        "System.IterationPath": "Sprint 10",
+        "System.CreatedDate": "2026-08-20T12:00:00Z",
+        "System.Tags": "SQLite; MemoryLeak; Closed"
+      }
+    },
+    {
+      "id": 10250,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10250",
+      "fields": {
+        "System.Id": 10250,
+        "System.Title": "Audit Logging for Level 3 Clearance Document Retrieval",
+        "System.WorkItemType": "Task",
+        "System.State": "Active",
+        "System.AssignedTo": {
+          "displayName": "Marcus Vance",
+          "id": "guid-10250",
+          "uniqueName": "marcus.vance@enterprise.local"
+        },
+        "System.Description": "<div>Whenever a user or agent queries confidential documents (Clearance Level 3), an immutable audit event must be logged with timestamp, user ID, and query embeddings.</div>",
+        "Microsoft.VSTS.Common.Priority": 1,
+        "Microsoft.VSTS.Common.Severity": "1 - Critical",
+        "System.AreaPath": "Security\\Audit",
+        "System.IterationPath": "Sprint 12",
+        "System.CreatedDate": "2026-09-13T14:30:00Z",
+        "System.Tags": "Audit; Compliance; RBAC"
+      }
+    },
+    {
+      "id": 10251,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10251",
+      "fields": {
+        "System.Id": 10251,
+        "System.Title": "SLA Breach on Adjudication Batch Pipeline",
+        "System.WorkItemType": "Bug",
+        "System.State": "Active",
+        "System.AssignedTo": {
+          "displayName": "Jane Doe",
+          "id": "guid-10251",
+          "uniqueName": "jane.doe@enterprise.local"
+        },
+        "System.Description": "<div><b>Incident:</b> Batch claim processing time exceeded the 15-minute SLA threshold due to lock contention in the status table during concurrent batch updates.</div>",
+        "Microsoft.VSTS.Common.Priority": 1,
+        "Microsoft.VSTS.Common.Severity": "1 - Critical",
+        "System.AreaPath": "CoreEngine\\Adjudication",
+        "System.IterationPath": "Sprint 12",
+        "System.CreatedDate": "2026-09-14T07:15:00Z",
+        "System.Tags": "SLA; Adjudication; CriticalBug"
+      }
+    },
+    {
+      "id": 10252,
+      "rev": 3,
+      "url": "https://dev.azure.com/enterprise_org/_apis/wit/workItems/10252",
+      "fields": {
+        "System.Id": 10252,
+        "System.Title": "Implement Pydantic v2 Schema Validator for TFS Payloads",
+        "System.WorkItemType": "Task",
+        "System.State": "Resolved",
+        "System.AssignedTo": {
+          "displayName": "John Smith",
+          "id": "guid-10252",
+          "uniqueName": "john.smith@enterprise.local"
+        },
+        "System.Description": "<div>Created <code>WorkItemSummary</code> model to filter away internal system GUIDs and URL blobs from raw Azure DevOps JSON payloads.</div>",
+        "Microsoft.VSTS.Common.Priority": 3,
+        "Microsoft.VSTS.Common.Severity": "4 - Low",
+        "System.AreaPath": "AI\\Ingestion",
+        "System.IterationPath": "Sprint 11",
+        "System.CreatedDate": "2026-09-06T11:00:00Z",
+        "System.Tags": "Pydantic; Schema; Pruning"
+      }
+    }
+  ]
+}

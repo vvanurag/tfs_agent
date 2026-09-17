@@ -10,7 +10,7 @@
 
 An enterprise-grade, **air-gapped, zero-egress AI agent pipeline** designed to ingest, prune, validate, and synthesize work items from **Azure DevOps (TFS)**. By combining **100% real local LLM execution (Llama 3 via Ollama)**, **ChromaDB RAG with Role-Based Access Control (RBAC)**, and **LangGraph self-healing stateful workflows**, this system completely eliminates corporate data leakage and compliance violations.
 
-> 🤖 **AI Assistant Handover:** If you are an AI model taking over this repository, refer to **[`gpt_follow_up.md`](gpt_follow_up.md)** for a complete, self-contained architecture and implementation handover guide.
+> 🤖 **AI Assistant Handover:** If you are an AI model taking over this repository, refer to **[`docs/gpt_follow_up.md`](docs/gpt_follow_up.md)** for a complete, self-contained architecture and implementation handover guide.
 
 ---
 
@@ -18,15 +18,12 @@ An enterprise-grade, **air-gapped, zero-egress AI agent pipeline** designed to i
 - [Architecture & Philosophy](#-architecture--philosophy)
 - [Key Features](#-key-features)
 - [System Architecture Diagram](#-system-architecture-diagram)
-- [Repository Structure](#-repository-structure)
+- [Professional Repository Structure](#-professional-repository-structure)
 - [Prerequisites](#-prerequisites)
 - [Quickstart Guide](#-quickstart-guide)
   - [1. Environment Setup](#1-environment-setup)
-  - [2. Seed Enterprise Database](#2-seed-enterprise-database)
-  - [3. Start Local TFS Emulator](#3-start-local-tfs-emulator)
-  - [4. Test Two-Stage Data Ingestion](#4-test-two-stage-data-ingestion)
-  - [5. Build & Query Vector Store with RBAC](#5-build--query-vector-store-with-rbac)
-  - [6. Execute Multi-Agent Orchestrator](#6-execute-multi-agent-orchestrator)
+  - [2. Unified CLI Usage (`main.py`)](#2-unified-cli-usage-mainpy)
+  - [3. Standalone Demonstrations (`demonstrations/`)](#3-standalone-demonstrations-demonstrations)
 - [Data Contract & Payload Engineering](#-data-contract--payload-engineering)
 - [Project Roadmap & Status](#-project-roadmap--status)
 - [License](#-license)
@@ -47,12 +44,12 @@ In regulated enterprise environments (e.g., healthcare, finance, defense), uploa
 
 ## ✨ Key Features
 
-| Stage | Technology | Capability | Status |
-| :--- | :--- | :--- | :---: |
-| **1. Payload Engineering** | FastAPI + SQLite + Pydantic v2 | Simulates Azure DevOps WIQL endpoints; strips system metadata, GUIDs, and raw HTML formatting. | ✅ Complete |
-| **2. Secure RAG & RBAC** | ChromaDB + LangChain Splitters | Semantic chunking with mathematical `$lte` metadata security clearance filtering (Level 1–3). | ✅ Complete |
-| **3. Multi-Agent Orchestrator** | LangGraph + Real Llama 3 (Ollama) | Stateful multi-agent graph: TFS Retrieval Node $\rightarrow$ RAG Retrieval Node $\rightarrow$ Drafting Node $\rightarrow$ Pydantic Validation Node $\rightarrow$ Self-Healing Loop. | ✅ Complete |
-| **4. Network Resilience** | Tenacity + Exponential Backoff | Gateway layer with retry jitter to gracefully handle transient network drops, 429s, and 500 errors. | 🟡 Up Next |
+| Stage | Package | Technology | Capability | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **1. Ingestion & Pruning** | `src/emulator/` | FastAPI + SQLite + Pydantic v2 | Simulates Azure DevOps WIQL endpoints; strips system metadata, GUIDs, and raw HTML formatting. | ✅ Complete |
+| **2. Secure RAG & RBAC** | `src/rag/` | ChromaDB + LangChain Splitters | Semantic chunking with mathematical `$lte` metadata security clearance filtering (Level 1–3). | ✅ Complete |
+| **3. Multi-Agent Orchestrator** | `src/agents/` | LangGraph + Real Llama 3 (Ollama) | Stateful multi-agent graph: TFS Retrieval Node $\rightarrow$ RAG Retrieval Node $\rightarrow$ Drafting Node $\rightarrow$ Pydantic Validation Node $\rightarrow$ Self-Healing Loop. | ✅ Complete |
+| **4. Network Resilience** | `src/resilience/` | Tenacity + Exponential Backoff | Gateway layer with retry jitter to gracefully handle transient network drops, 429s, and 500 errors. | ✅ Complete |
 
 ---
 
@@ -61,18 +58,18 @@ In regulated enterprise environments (e.g., healthcare, finance, defense), uploa
 ```mermaid
 flowchart TD
     subgraph Local_Enterprise_Environment ["🔒 Air-Gapped / Zero-Egress Host Machine"]
-        subgraph Stage1 ["Stage 1: TFS Ingestion (Complete)"]
-            TFS_DB[("SQLite TFS Database\n(local_tfs.db)")]
-            Emulator["FastAPI TFS Emulator\n(local_tfs_emulator.py)"]
-            TFS_Client["Two-Stage Client & Pruner\n(real_local_tfs_client.py)"]
+        subgraph Stage1 ["Stage 1: TFS Ingestion (src/emulator/)"]
+            TFS_DB[("SQLite TFS Database\n(data/local_tfs.db)")]
+            Emulator["FastAPI TFS Emulator\n(src/emulator/server.py)"]
+            TFS_Client["Two-Stage Client & Pruner\n(src/emulator/client.py)"]
             
             TFS_DB <--> Emulator
             Emulator -->|WIQL POST + Batch GET| TFS_Client
             TFS_Client -->|Pruned WorkItemSummary| StateGraph
         end
 
-        subgraph Stage2 ["Stage 2: Secure RAG & RBAC (Complete)"]
-            Docs["Internal Architecture & SLA Specs\n(mock_documents/*.md)"]
+        subgraph Stage2 ["Stage 2: Secure RAG & RBAC (src/rag/)"]
+            Docs["Internal Architecture & SLA Specs\n(data/documents/*.md)"]
             Splitter["RecursiveCharacterTextSplitter\n(Overlap: 50, Size: 300)"]
             Chroma[("Local ChromaDB\n(RBAC Metadata: Clearance <= N)")]
             
@@ -80,7 +77,7 @@ flowchart TD
             Chroma -->|Clearance Filtered Chunks| StateGraph
         end
 
-        subgraph Stage3 ["Stage 3: LangGraph Multi-Agent Orchestrator (Complete)"]
+        subgraph Stage3 ["Stage 3: LangGraph Multi-Agent Orchestrator (src/agents/)"]
             StateGraph{"LangGraph State Router"}
             DraftNode["Drafting Agent\n(Real Llama 3 via Ollama)"]
             ValNode["Validation Agent\n(Pydantic Schema Check)"]
@@ -97,40 +94,59 @@ flowchart TD
 
 ---
 
-## 📂 Repository Structure
+## 📂 Professional Repository Structure
 
 ```text
 tfs_agent/
+├── main.py                            # Unified CLI & pipeline entrypoint
+├── requirements.txt                   # Python dependency manifest
+├── verify_env.py                      # Environment verification & dependency checker
 ├── README.md                          # Repository documentation & architecture guide
-├── gpt_follow_up.md                   # Complete AI handover & project context guide
-├── PROJECT_STATUS.md                  # Detailed implementation status & audit tracker
-├── project_implementation_writeup.md  # Original architectural specification
 │
-├── local_tfs_emulator.py              # FastAPI server simulating Azure DevOps / TFS REST API
-├── seed_database.py                   # Populates SQLite with enterprise work items
-├── tfs_dataset.json                   # 12+ realistic work items (Bugs, Tasks, Stories, Epics)
-├── local_tfs.db                       # Local SQLite database backing the TFS emulator
+├── src/                               # 📦 Core Modular Source Code
+│   ├── emulator/                      # Stage 1: TFS API Emulator, Seeder & Client
+│   │   ├── server.py                  # FastAPI REST API server (port 8000)
+│   │   ├── seeder.py                  # Database initialization script
+│   │   └── client.py                  # Two-stage client with HTML stripping & Pydantic pruning
+│   │
+│   ├── rag/                           # Stage 2: ChromaDB Vector Store & RBAC
+│   │   ├── indexer.py                 # Semantic chunking & vector indexing
+│   │   └── search.py                  # Retrieval-layer RBAC similarity search
+│   │
+│   ├── agents/                        # Stage 3: LangGraph Multi-Agent Orchestrator
+│   │   ├── schemas.py                 # Pydantic state & report contracts
+│   │   ├── tools.py                   # LangChain tool connectors
+│   │   └── orchestrator.py            # LangGraph multi-agent state graph (Real Llama 3)
+│   │
+│   └── resilience/                    # Stage 4: Network Resilience Gateway
+│       └── gateway.py                 # Tenacity retry & exponential backoff
 │
-├── real_local_tfs_client.py           # Two-stage HTTP client with HTML stripping & Pydantic pruning
-├── mock_tfs_client.py                 # Offline mock TFS client
-├── mock_tfs_response.json             # Raw Azure DevOps response payload for offline tests
+├── data/                              # 💾 Data, Models & Storage
+│   ├── tfs_dataset.json               # Seed enterprise dataset (12 work items)
+│   ├── mock_tfs_response.json         # Offline mock payload
+│   ├── local_tfs.db                   # SQLite database
+│   ├── local_chroma_db/               # Persistent ChromaDB vector store
+│   └── documents/                     # Internal corporate docs (Level 1, 2, 3)
+│       ├── engineering_handbook.md    # Level 1 (General)
+│       ├── adjudication_architecture.md # Level 2 (Internal Engineering SLAs)
+│       └── security_policy.md         # Level 3 (Zero-Egress & Confidential)
 │
-├── mock_documents/                    # Enterprise internal documentation
-│   ├── engineering_handbook.md        # Clearance Level 1 (General)
-│   ├── adjudication_architecture.md   # Clearance Level 2 (Internal Engineering SLAs)
-│   └── security_policy.md             # Clearance Level 3 (Zero-Egress & Confidential)
+├── demonstrations/                    # 🧪 Standalone Capability Scripts (1 to 7)
+│   ├── 01_tfs_two_stage_ingestion_demo.py
+│   ├── 02_semantic_chunking_and_chroma_demo.py
+│   ├── 03_rbac_vector_search_demo.py
+│   ├── 04_local_llama3_ollama_demo.py
+│   ├── 05_pydantic_structured_output_demo.py
+│   ├── 06_langgraph_multiagent_self_healing_demo.py
+│   ├── 07_network_resilience_tenacity_demo.py
+│   └── MAJOR_FUNCTIONS.md             # Complete function & API inventory
 │
-├── build_vector_store.py              # Chunker & ChromaDB ingest script with RBAC tags
-├── query_vector_store.py              # Vector similarity search with clearance filtering
-│
-├── agent_tools.py                     # LangChain @tool wrappers connected to live TFS & ChromaDB
-├── test_agent_tools.py                # Unit test for agent tools
-├── real_llm_guide.py                  # Hands-on tutorial on real LLMs, Pydantic schemas, and cloud switching
-│
-├── agent_orchestrator.py              # LangGraph state graph powered by real Llama 3
-├── agent_orchestration_test.py        # Multi-agent test suite powered by real Llama 3
-├── agent_orchestrator_real_llm.py     # Production LangGraph pipeline (TFS + RAG + Llama 3 + Self-Healing)
-└── verify_env.py                      # Environment verification & dependency checker
+└── docs/                              # 📖 Documentation & Architecture Guides
+    ├── gpt_follow_up.md               # AI Handover & Context Guide
+    ├── PROJECT_STATUS.md              # Milestone & audit tracker
+    ├── project_implementation_writeup.md # Original architectural writeup
+    ├── real_llm_guide.py              # Tutorial on real LLMs & structured output
+    └── what_have_I_learnt.md          # Project learning notes
 ```
 
 ---
@@ -150,100 +166,62 @@ tfs_agent/
 
 ### 1. Environment Setup
 
-Create and activate a virtual environment or Conda environment:
-
 ```bash
 # Using Conda
 conda create -n ai_agent python=3.12 -y
 conda activate ai_agent
 
 # Install dependencies
-pip install fastapi uvicorn requests requests-ntlm pydantic tenacity chromadb langchain langgraph langchain-ollama langchain-text-splitters
-```
-
-Verify your installation:
-```bash
+pip install -r requirements.txt
 python verify_env.py
 ```
 
 ---
 
-### 2. Seed Enterprise Database
+### 2. Unified CLI Usage (`main.py`)
 
-Populate the local SQLite database with realistic work items and generate mock response files:
+The root `main.py` provides a unified interface for all operations:
 
 ```bash
-python seed_database.py
+# 1. Run complete pipeline end-to-end (Seeding -> RAG Indexing -> Multi-Agent Execution)
+python main.py --run-all
+
+# 2. Seed the enterprise database
+python main.py --seed
+
+# 3. Start local TFS emulator server
+python main.py --start-server
+
+# 4. Build ChromaDB vector store
+python main.py --build-rag
+
+# 5. Test TFS API client
+python main.py --test-client
+
+# 6. Test ChromaDB RBAC search
+python main.py --test-rag --clearance 2
+
+# 7. Run LangGraph Multi-Agent Orchestrator
+python main.py --run-agent --clearance 2
 ```
 
 ---
 
-### 3. Start Local TFS Emulator
+### 3. Standalone Demonstrations (`demonstrations/`)
 
-Launch the local FastAPI server simulating Azure DevOps REST API:
-
-```bash
-python local_tfs_emulator.py
-```
-* The server runs at: `http://127.0.0.1:8000`
-* Interactive Swagger Docs available at: `http://127.0.0.1:8000/docs`
-
----
-
-### 4. Test Two-Stage Data Ingestion
-
-In a separate terminal, execute the client to query active bugs and verify Pydantic normalization:
+To test and learn each component in isolation, run any of the standalone demo scripts:
 
 ```bash
-python real_local_tfs_client.py
+python demonstrations/01_tfs_two_stage_ingestion_demo.py
+python demonstrations/02_semantic_chunking_and_chroma_demo.py
+python demonstrations/03_rbac_vector_search_demo.py
+python demonstrations/04_local_llama3_ollama_demo.py
+python demonstrations/05_pydantic_structured_output_demo.py
+python demonstrations/06_langgraph_multiagent_self_healing_demo.py
+python demonstrations/07_network_resilience_tenacity_demo.py
 ```
 
----
-
-### 5. Build & Query Vector Store with RBAC
-
-Ingest engineering specs and policies into ChromaDB with Role-Based Access Control tags, then run multi-clearance verification:
-
-```bash
-python build_vector_store.py
-python query_vector_store.py
-```
-
-**RBAC Clearance Matrix:**
-* **Level 1 (Junior Engineer):** Public general handbook only; confidential architecture specs are mathematically hidden.
-* **Level 2 (Senior Engineer):** Unlocks exact NTLM SLA retry rules (3 attempts, 500ms jittered backoff, 30s timeout ceiling).
-* **Level 3 (Compliance Officer):** Unlocks confidential SEC-099 Zero-Egress mandates and cloud API prohibitions.
-
----
-
-### 6. Execute Multi-Agent Orchestrator (Powered by Real Llama 3)
-
-Start the Ollama daemon and run the LangGraph self-healing pipeline:
-
-```bash
-# Terminal 1: Start Ollama service (if not already running)
-ollama serve
-
-# Terminal 2: Run LangGraph orchestrator
-python agent_orchestrator_real_llm.py
-```
-
-**Live Self-Healing Execution Trace:**
-```text
-=================================================================
--> [Node 1: TFS Retrieval Agent] Ingested and pruned 9 active work items.
--> [Node 2: RAG Retrieval Agent] Injected 3 RBAC-verified architecture context chunks.
--> [Node 3: Drafting Agent] Prompting local Llama 3 to synthesize report...
--> [Node 4: Validation Agent] Enforcing Pydantic SprintReportSchema...
-   ❌ FAILED: JSON Syntax Error: Expecting ',' delimiter...
-   [Router] Routing state -> Correction Agent.
--> [Node 5: Correction Agent] SELF-HEALING LOOP (Attempt 1/3)
-   Fixing Error with Llama 3...
--> [Node 4: Validation Agent] Enforcing Pydantic SprintReportSchema...
-   ✅ Pydantic Contract PASSED with 0 errors.
-   [Router] Validation succeeded. Routing -> END.
-=================================================================
-```
+See **[`demonstrations/MAJOR_FUNCTIONS.md`](demonstrations/MAJOR_FUNCTIONS.md)** for a full function-by-function reference.
 
 ---
 
@@ -269,21 +247,6 @@ class WorkItemSummary(BaseModel):
 
     model_config = {"populate_by_name": True}
 ```
-
----
-
-## 🗺️ Project Roadmap & Status
-
-For a line-by-line audit and upcoming milestones, see **[PROJECT_STATUS.md](PROJECT_STATUS.md)** and **[gpt_follow_up.md](gpt_follow_up.md)**.
-
-- [x] **Stage 1**: Local TFS API Emulator & Two-Stage Pydantic Ingestion
-- [x] **Stage 1**: Enterprise SQLite Dataset Seeding & Mock JSON generation
-- [x] **Stage 2**: Ingest complete corporate architecture docs & RBAC clearance tests (`mock_documents/`, ChromaDB)
-- [x] **Stage 2**: Retrieval-layer `$lte` mathematical clearance filtering
-- [x] **Stage 3**: Wire `agent_tools.py` directly to live TFS & ChromaDB backends
-- [x] **Stage 3**: Integrate real local Llama 3 (Ollama) across all orchestrator scripts
-- [x] **Stage 3**: Production LangGraph pipeline with dynamic self-healing correction loop
-- [ ] **Stage 4**: Network Resilience Gateway with Tenacity retry & exponential backoff
 
 ---
 
