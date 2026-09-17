@@ -6,6 +6,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  initThemeToggle();
   initAgentFlowchart();
   initFunctionFlowchart();
   initPipelineSimulator();
@@ -15,6 +16,29 @@ document.addEventListener('DOMContentLoaded', () => {
   initResilienceSimulator();
   initCopyButtons();
 });
+
+// ----------------------------------------------------------------------------
+// THEME CONTROLLER (ACADEMIC PAPER / MIDNIGHT LAB)
+// ----------------------------------------------------------------------------
+function initThemeToggle() {
+  const themeBtn = document.getElementById('theme-toggle-btn');
+  const themeLabel = document.getElementById('theme-btn-label');
+  const html = document.documentElement;
+
+  const savedTheme = localStorage.getItem('academic_theme') || 'light';
+  html.setAttribute('data-theme', savedTheme);
+  if (themeLabel) themeLabel.textContent = savedTheme === 'light' ? 'Paper Mode' : 'Lab Mode';
+
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const current = html.getAttribute('data-theme') || 'light';
+      const next = current === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('academic_theme', next);
+      if (themeLabel) themeLabel.textContent = next === 'light' ? 'Paper Mode' : 'Lab Mode';
+    });
+  }
+}
 
 // ----------------------------------------------------------------------------
 // 0. INTERACTIVE FLOWCHART OF AGENTS (LANGGRAPH STATEGRAPH)
